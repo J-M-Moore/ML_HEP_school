@@ -14,6 +14,114 @@
 
 %%%% INTRODUCTION %%%%
 \newpage
+\section{Competition: Dark matter searches}
+
+\subsection{Introduction to dark matter}
+\describesection{Background information on dark matter.}
+Less than 5\% of the total mass and energy in the universe is the stuff we know about: stars, planets, galaxies, gases. Most of the universe is made of \textit{dark matter} (dark because it does not interact with light), whilst the rest is \textit{dark energy}.\\
+
+There is significant evidence for this dark matter (from rotational curves of galaxies, the CMB, velocity of galaxies, big bang nucleosynthesis, cluster collisions) at various scales. It was even hypothesised in the 1930s - but we still don't know what it is! We can, however, comment on \textit{where} dark matter is. Our galaxy is surrounded by an approximately spherical halo of dark halo, with the Sun moving through this halo.\\
+
+Certainly, dark matter is not one of the Standard Model elementary particles (i.e. dark matter is not a quark, lepton, gauge boson, or the Higgs boson). Quarks, leptons and the $W$-boson are all charged (dark matter is neutral - it is `dark'), neutrinos are too light (and move too fast), and the $Z$ and Higgs are too short-lived.\\
+
+There are many models which have been proposed to explain dark matter. One hypothesis is that dark matter is made of \textit{weakly interacting massive particles} (abbreviated to WIMPs).
+
+\minirule
+
+\subsection{Direct detection of dark matter}
+\describesection{Dark matter flux on Earth. Directionality and detection. Background events vs signal events. Electron recoil and nuclear recoil.}
+Since the Earth is moving through the dark matter halo surrounding the galaxy, we should expect to able to detect dark matter here on Earth. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.45]{darkmatter1.png}\qquad\qquad\qquad
+\includegraphics[scale=0.4]{darkmatter2.png}
+\end{figure}
+
+One can perform a rough calculation to determine how many dark matter particles we expect to detect:
+\begin{itemize}
+\item The dark matter density is given experimentally by $\rho = 0.3\ \textrm{GeV}/\textrm{cm}^3$
+\item The average velocity of the Sun is given by $\braket{\vec{v}} = 220\ \textrm{km}/\textrm{s}$.
+\item We don't know the mass of the dark matter particles, but in the WIMP models we expect that the mass is around $m \approx 100\ \textrm{GeV}$. 
+\end{itemize}
+We can then determine the \textit{flux} of WIMPs on Earth:
+\begin{equation*}
+\phi = \frac{\rho}{m} \braket{\vec{v}} \approx 10^5\ \textrm{cm}^{-2}\textrm{s}^{-1}.
+\end{equation*}
+Thus tens of millions of dark matter particles are flying through your hand every second!
+
+
+\newpage
+One important strategy we can employ in the detection of dark matter is \textit{directionality}. From our position on Earth,  we know that dark matter particles arrive from a \textit{precise direction} in the sky, namely the \textit{Cygnus constellation}. They travel at velocities around $220\ \textrm{km}/\textrm{s}$. When they hit some special nuclei that forms part of our detector, there is an \textit{elastic collision} that results in movement of the nuclei - this is measurable because the nuclei is visible (unlike the WIMP).
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{wimpscattering.png}
+\end{figure}
+If we see nuclei moving in a direction that is compatible with the direction that we expect dark matter to arrive from, this could be evidence of dark matter detection.\\
+
+The direction is very important because there are many other things that can hit a nucleus, and the nucleus can move for other reasons unrelated to dark matter. The general problem is that \textit{whilst the flux of WIMPs is high, the probability of interaction is very low}. In a sensitive detector we expect $1$ event per kilogram per year (compare this with placing a banana near the detector - this causes around $100$ events per kilogram per year, because of the radiation from the potassium in the banana!). Therefore, the experimental challenge is to detect a \textit{tiny signal} over a \textit{large background}.
+
+\minirule
+
+There are some differences between signal and background events. A dark matter signal comprises only \textit{nuclear recoil}, whilst most of the background is comprised of \textit{electron recoil} caused by photon interactions. On the other hand the background does also include nuclear recoil events caused by neutrons, which are similar to WIMP nuclear recoil events.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{wimprecoil.png}
+\end{figure}
+
+There are two main sources of background: 
+\begin{enumerate}[label = (\arabic*)]
+\item \textit{Cosmic rays}. These are a problem if you would like to do your measurement on the Earth's surface. To mitigate the effect, we can work in underground laboratories.
+\item \textit{Environmental radioactivity} (mainly from potassium, uranium and thorium). This comes even from the walls of your lab! To mitigate this effect, we can shield the equipment, and carefully choose materials with low levels of radioactivity in the setup.
+\end{enumerate} 
+
+
+
+\newpage
+\subsection{Dark matter detection with a time projection chamber}
+\describesection{Gas tank detection. Images of electron recoil tracks and nuclear recoil tracks. Goal of the school's competition.}
+We will now describe in more detail the detection of dark matter via nuclear recoil.\\
+
+The general idea is to us a \textit{gas target}; for example the gas used in the CYGNO experiment, based in Italy, is a mixture of helium $\textrm{He}$ and carbon tetrafluoride $\textrm{CF}_4$. The advantage of using a gas target is that it is not very dense, so the recoiling nucleus can travel several millimetres. This direction can be measured. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{gastank.png}
+\end{figure}
+
+The way the measurement works is as follows. Electrons from the struck nucleus are ionised, and an electric field is applied to the detector such that the electrons move towards the \textit{anode} of the detector. The amount of electrons that reach the anode is proportional to the released energy, which implies we can measure energy deposits and their position in the $xy$-plane, giving a 2D projection of the particles' track.\\
+Here are some examples of (simulated, cleaned) tracks from electron recoils in the CYGNO experiment:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{electrontracks.png}
+\end{figure}
+
+
+\newpage
+Here are some examples of (simulated, cleaned) tracks from helium recoils in the CYGNO experiment:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{heliumtracks.png}
+\end{figure}
+
+As you can see from the figures, there is a somewhat visible difference between electron recoil and helium recoil.\\
+
+When noise is added, the figures become slightly more complicated:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{noisyelectrontracks.png}
+\end{figure}
+For smaller energies it can be difficult by eye to even find the track!
+
+\minirule
+
+The goal of the competition at the school is to devise a machine learning procedure to distinguish between electron recoil (ER) and helium nuclear recoil (NR) in such tracks. The events will have energies ranging from $1$ to $30 \textrm{ keV}$ (the most important energy range for dark matter searches, and also the most challenging region for background rejection), together with a random initial angle. There will be precisely one particle for each image in each case.
+
+
+
+\newpage
 \part{Introduction to machine learning}
 \hrule
 \noindent \\
@@ -907,6 +1015,8 @@ In other words a normal prior is equivalent to $L2$ regularisation of the parame
 \end{frameex} 
 
 Choosing different priors will lead to different regularisation of the parameters.
+
+
 
 
 
