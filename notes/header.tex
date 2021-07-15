@@ -1,0 +1,150 @@
+\documentclass{article}
+
+%%%% PAGE FORMATTING %%%%
+\usepackage[margin=1in, includefoot]{geometry}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+\fancyfoot[R]{ \thepage\ }
+\renewcommand{\footrulewidth}{1pt}
+\renewcommand{\headrulewidth}{1pt}
+\setlength{\parindent}{0pt}
+
+
+%%%% FONTS %%%%
+\usepackage[T1]{fontenc}
+\usepackage[sfdefault]{AlegreyaSans} % sfdefault makes sans serif default.
+\renewcommand*\oldstylenums[1]{{\AlegreyaSansOsF #1}}
+\usepackage[usenames, dvipsnames]{color}
+
+
+%%%% LISTS %%%%
+\usepackage{enumitem}
+
+
+%%%% TABLES %%%%
+\usepackage{tabularx}
+\usepackage{caption}
+\captionsetup[table]{skip=10pt}
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+\setlength{\tabcolsep}{20pt}
+\renewcommand{\arraystretch}{1}
+
+
+%%%% FIGURES %%%%
+\usepackage{graphicx}
+\usepackage{float}
+
+
+%%%% TIKZ PICTURES %%%%
+\usepackage{tikz}
+\usetikzlibrary{shapes}
+\usetikzlibrary{positioning}
+\usetikzlibrary{patterns}
+\usepackage{pgf}
+\usetikzlibrary{arrows.meta,bending}
+\usetikzlibrary{decorations.pathmorphing}
+\usetikzlibrary{decorations.markings}
+
+
+%%%% MATHEMATICS %%%%
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{mathtools} % For prescripts.
+\renewcommand{\vec}[1]{\textbf{#1}} % Vectors appear as boldface.
+\usepackage{braket} % For braket notation.
+\usepackage{tensor} % For tensor indices.
+
+
+%%%% FRAMED MATHEMATICS ENVIRONMENTS %%%%
+\usepackage{framed}
+
+\newcounter{framedmath}[section]
+\newenvironment{framethm}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Theorem~\thesection.\theframedmath:} #1}{\end{framed}} 
+
+\newenvironment{framethmstar}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{*Theorem~\thesection.\theframedmath:*} #1}{\end{framed}} 
+
+\newenvironment{framelem}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Lemma~\thesection.\theframedmath:} #1}{\end{framed}} 
+
+\newenvironment{framecor}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Corollary~\thesection.\theframedmath:} #1}{\end{framed}} 
+   
+\newenvironment{frameex}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Example~\thesection.\theframedmath:} #1}{\end{framed}} 
+
+\newenvironment{framedef}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Definition~\thesection.\theframedmath:} #1}{\end{framed}} 
+
+\newenvironment{frameax}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Axiom~\thesection.\theframedmath:} #1}{\end{framed}} 
+
+\newenvironment{frameprop}[1][]{\refstepcounter{framedmath} \begin{framed} \noindent \textbf{Proposition~\thesection.\theframedmath:} #1}{\end{framed}} 
+
+%%%% MARGIN NOTES %%%%
+\usepackage[fulladjust]{marginnote}
+
+\makeatletter
+\renewcommand\marginfont{\normalfont}
+\renewcommand\raggedleftmarginnote{\@parboxrestore\@marginparreset\raggedleft}
+\renewcommand\raggedrightmarginnote{\@parboxrestore\@marginparreset\raggedright}
+\makeatother
+
+\newcounter{lecture}
+\newcommand{\lecture}{\refstepcounter{lecture}\reversemarginpar\marginnote{\ding{70} \textit{Lecture ~\thelecture}}}
+
+
+%%%% FUN SYMBOLS %%%%
+\usepackage{pifont}
+
+
+%%%% PAGE RULES %%%%
+\newcommand{\minirule}{\begin{center}\rule{0.7\textwidth}{.4pt}\end{center}}
+
+
+%%%% CONTENTS LINES %%%%
+\newcommand{\describesection}[1]{\addtocontents{toc}{\textit{\footnotesize \hspace{37pt} #1}\par\vspace{0.1cm}}}
+
+
+%%%% HYPERLINKS %%%%
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=red,
+    filecolor=black,      
+    urlcolor=red,
+}
+
+
+%%%% CODE %%%%
+\usepackage{listings}
+\usepackage{color}
+
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{8} % for bold
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{8}  % for normal
+
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+\newcommand\pythonstyle{\lstset{
+language=Python,
+basicstyle=\ttm,
+morekeywords={self},              % Add keywords here
+keywordstyle=\ttb\color{deepblue},
+emph={MyClass,__init__},          % Custom highlighting
+emphstyle=\ttb\color{deepred},    % Custom highlighting style
+stringstyle=\color{deepgreen},
+frame=tb,                         % Any extra options here
+showstringspaces=false,
+numbers=left,
+numberstyle=\small\color{gray}
+}}
+
+\lstnewenvironment{python}[1][]
+{
+\pythonstyle
+\lstset{#1}
+}
+{}
+
+
+%%%% FLAG ERROR IN NOTES %%%% 
+\newcommand{\flag}[1]{{\color{red} #1}}
