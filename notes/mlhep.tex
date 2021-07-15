@@ -105,7 +105,7 @@ One-hot encoding can also be applied to categorial ordinal features:
 \begin{framedef}
 Let $x_i = (x_i^1,...,x_i^{j-1},x_i^j,x_i^{j+1}, ..., x_i^d)$ be an object in a dataset, and let $x_i^j$ be a categorical \textit{ordinal} feature for the object, taking values in some finite set $S$ with ordering $<$. Suppose that the elements of $S$ are ordered as $s_1 < s_2 < \cdots < s_{|S|}$. A \textit{one-hot encoding} replaces the feature $x_i^j$ with $|S|$ binary features $\{x_i^{j,s} : s \in S\}$ obeying:
 \begin{equation*}
-x_i^{j,s} = \begin{cases} 0 & \text{if $s < x_i^j$,}\\ 1 & \text{if $x_i^j \leq $.} \end{cases}
+x_i^{j,s} = \begin{cases} 0 & \text{if $s < x_i^j$,}\\ 1 & \text{if $x_i^j \leq s$.} \end{cases}
 \end{equation*}
 The new object then takes the form 
 \begin{equation*}
