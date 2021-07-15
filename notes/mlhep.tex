@@ -20,6 +20,7 @@
 \section{Introduction to supervised learning}
 
 \subsection{Problem setup}
+\describesection{Problem setup for supervised learning. Basic examples.}
 
 \begin{framedef}
 Consider a set $\mathcal{X}$ of objects and a set of targets $\mathcal{Y}$. Suppose also that there is an unknown function $f : \mathcal{X} \rightarrow \mathcal{Y}$ mapping objects into targets (which may be stochastic - by which we mean the objects and targets are drawn from some joint probability distribution).\\
@@ -40,6 +41,7 @@ A \textit{dataset} is a finite collection $D = \{(x_i,f(x_i)) : i=1,...,N\} \sub
 
 \newpage
 \subsection{Feature types}
+\describesection{Features and the design matrix. Numeric, categorical nominal, categorical ordinal and binary features. One-hot encoding.}
 Typically the objects in our set $\mathcal{X}$ will have some structure.
 
 \begin{framedef}
@@ -67,8 +69,8 @@ Since each flower will have these features, we can describe all objects as $4$-t
 In general, features $x_i^j$ might be of varying natures. We give special names to some common cases:
 \begin{itemize}
 \item \textit{Numeric features} take values in (for example) the real numbers. For example sepal length in the classification of iris species, building height, or particle transverse mometnum.
-\item \textit{Categorial nominal features} take values in a finite set, with no natural ordering. For example colour, city of birth or particle type.
-\item \textit{Categorial ordinal features} take values in a set equipped with a natural order, for example level of education, age, or particles passing loose, medium or tight selection criteria.
+\item \textit{Categorical nominal features} take values in a finite set, with no natural ordering. For example colour, city of birth or particle type.
+\item \textit{Categorical ordinal features} take values in a set equipped with a natural order, for example level of education, age, or particles passing loose, medium or tight selection criteria.
 \item \textit{Binary features} take values in a set of size $2$, for example $\{\text{true}, \text{false}\}$, $\{0,1\}$, $\{-1,+1\}$. 
 \end{itemize}
 \end{framedef}
@@ -132,6 +134,7 @@ Note that this \textit{retains} the ordering of the original categorical ordinal
 
 \newpage
 \subsection{Learning algorithms}
+\describesection{Definition of a learning algorithm. Loss functions, e.g. least squares error. Examples of $k$ nearest neighbours and linear regression.}
 \begin{framedef}
 Let $\mathcal{X}, \mathcal{Y}, f$ be the respective objects, targets and function of a supervised learning problem. Given a dataset $D = \{(x_i,f(x_i)) : i=1,2,...,N\} \subseteq \mathcal{X} \times \mathcal{Y}$, a \textit{learning algorithm} $\mathcal{A}$ returns an approximation $\hat{f} = \mathcal{A}(D)$ (which depends on the dataset) to the true function $f$.
 \end{framedef}
@@ -188,6 +191,7 @@ is minimised.
 
 \newpage
 \subsection{Assumptions about data and model complexity}
+\describesection{Training and test data. The curse of dimensionality. Model complexity.}
 Given no assumptions about a dataset, there are typically infinitely many solutions to a loss minimisation problem. For example, if we wish to interpolate a finite set of points for a one-dimensional function, infinitely many curves will perfectly minimise the loss (defined in this case as the sum of the distances between the curve and the point at each point).\\
 
 To combat these, we introduce the concept of \textit{test data}:
@@ -241,6 +245,7 @@ The goal is to find the \textit{right level of limitations} - not too strict, no
 \newpage
 \section{Linear models}
 \subsection{Linear models and linear regression}
+\describesection{Linear models and examples. `Hidden power' of linear models via feature transformation. Examples of loss functions: MSE, MAE, MAPE and MSLE.}
 \begin{framedef}
 A \textit{linear model} is a model $\hat{f}(x)$ which is linear in its input (note this assumes a vector space structure on both the objects and targets). 
 \end{framedef}
@@ -302,6 +307,7 @@ In general, applying different loss functions are also related to different assu
 
 \newpage
 \subsection{Analytic solution}
+\describesection{Analytic solution for linear models. Ill-conditioning and flat directions. Bias terms.}
 Recall that earlier we defined the design matrix $X$, a matrix with rows given by the objects and columns given by the features. We can use this to rewrite the mean squared error loss as:
 \begin{equation*}
 \mathcal{L}_{\text{MSE}} = \frac{1}{N} \sum_{i=1,...,N} \left( f(\vec{x}_i) - \pmb{\theta}^T \vec{x}_i \right)^2 = \frac{1}{N} || \vec{y} - X \pmb{\theta} ||^2,
@@ -364,6 +370,7 @@ Now when we multiply $X\pmb{\theta}$, one of the parameters will play the role o
 
 \newpage
 \subsection{Numerical and stochastic optimisation: gradient descent}
+\describesection{The gradient and its geometric interpretation. The gradient descent algorithm; convex functions. Overfitting and early stopping. Stochastic gradient descent.}
 We have now discussed the analytic solution for the mean squared error loss minimisation problem in the context of a linear model. However, most loss functions do not allow an analytic solution, so it is important to discuss numerical solutions.\\
 
 We being with some revision of the \textit{gradient}. Recall that the gradient of a scalar function on $\mathbb{R}^d$ is given by:
@@ -436,6 +443,7 @@ In the case of a smooth convex function, stochastic gradient descent also leads 
 
 \newpage
 \subsection{Feature expansion}
+\describesection{General description of feature transformation. Examples of polynomial feature transformations.}
 Let us now see how linear models can be made more powerful by transforming their features.
 
 \begin{framedef}
@@ -479,6 +487,7 @@ where $p_1 + p_2 + \cdots + p_m \leq p$ (with $p$ the degree we expect to work).
 \section{Classification with linear models}
 
 \subsection{Classification with linear regression}
+\describesection{Classification problems; na\"{i}ve approach with MSE loss. Better approach with smooth approximations to $0$-$1$ loss.}
 Consider a classification problem, with two classes, as shown below:
 \begin{figure}[H]
 \centering
@@ -532,6 +541,7 @@ Examples are shown in the above figure (the red line can be scaled to be above t
 
 \newpage
 \subsection{Logistic regression}
+\describesection{Logistic regression from class probabilities and maximum log likelihood. The sigmoid function and the logistic regression loss function.}
 Let's depart from the discussion above, and approach things from a different way to start with. Consider modelling the \textit{class probabilities}: we introduce a function $\hat{f}_{\pmb{\theta}}(\vec{x})$ that gives the probability of an object $\vec{x}$ being in the class $y=+1$, so that:
 \begin{equation*}
 \mathbb{P}(y=+1 | \vec{x}) = \hat{f}_{\pmb{\theta}}(\vec{x}), \qquad \mathbb{P}(y=-1 | \vec{x}) = 1 - \hat{f}_{\pmb{\theta}}(\vec{x}).
@@ -597,6 +607,7 @@ If the classes overlap however, the predicted class probability changes smooth, 
 
 \newpage
 \subsection{Multinomial logistic regression}
+\describesection{Logistic regression for many classes using class probabilities; symmetry of the parameters. The multinomial logistic regression loss function.}
 Similarly to the binary case, we can model the class probabilities when there are more classes than $2$. Let's model the \textit{unnormalised} class probabilities as:
 \begin{equation*}
 \tilde{\mathbb{P}}(y = k | \vec{x}) = \exp\left( \pmb{\theta}_k^T \vec{x} \right),
@@ -626,6 +637,7 @@ where $\pmb{\theta}_K = \vec{0}$. Again, this can be optimised \textit{numerical
 
 \newpage
 \subsection{Multiclass classification: general approach}
+\describesection{One-versus-rest multiclass classification. Comparison with logistic regression.}
 In fact, you are not limited to use logistic regression for multiclass classification - you are able to use any linear model.\\
 
 For a problem with $K$ classes, introduce $K$ predictors:
@@ -678,6 +690,7 @@ Is the one-vs-rest approach better than multinomial logistic regression however?
 \section{Model regularisation}
 
 \subsection{The problem of overfitting}
+\describesection{Recap of overfitting and test set.}
 Overfitting is the tendency of a model to adjust to random fluctuations in the data. This can be detected by a model making poor predictions on the \textit{test set}.
 
 \begin{figure}[H]
@@ -690,6 +703,7 @@ Recall that we need to use a model complexity such that we don't underfit, and w
 \minirule
 
 \subsection{Prediction error decomposition}
+\describesection{Decomposition of error sources: model variance, bias, and irreducible error. The bias-variance tradeoff. Bias and variance of linear models.}
 Before talking about regularisation, let's discuss the prediction error of a model. Assume that there's the following unknown relation between features and targets:
 \begin{equation*}
 y = f(x) + \epsilon,
@@ -771,6 +785,7 @@ In a high variance model, we expect that a small perturbation data will lead to 
 
 
 \subsection{Regularisation}
+\describesection{Regularisation methods: $L2$ regularisation, $L1$ regularisation, and elastic net regression. Comparison of methods; sparsity vs weight-sharing.}
 How can we reduce the variance of a model? If only we could \textit{increase the eigenvalues} of the matrix $X^TX$. In fact, we can do this manually:
 \begin{equation*}
 X^TX \rightarrow X^TX + \alpha I,
@@ -840,6 +855,7 @@ The elastic net is a compromise between the two approaches.
 \minirule
 
 \subsection{Probabilistic view}
+\describesection{Relationship of regularisation to probabilities and maximum likelihood.}
 Let's revisit our assumption about the data, $y = f(x) + \epsilon$. Let's now assume that the label noise is \textit{normally distributed}, $\epsilon \sim \mathcal{N}(0,\sigma_{\epsilon}^2)$. This means that the targets, given the objects, are also normally distributed:
 \begin{equation*}
 y|x \sim \mathcal{N}(f(x), \sigma_{\epsilon}^2).
@@ -867,6 +883,7 @@ You can do similar tricks for other loss functions and show that different proba
 \minirule
 
 \subsection{Bayesian view}
+\describesection{Relationship of regularisation to Bayesian priors.}
 In the Bayesian view, we treat both data $(X,y)$ and model parameters ($\theta$) as random variables. We estimate the parameter distribution given the observed data via Bayes' rule:
 \begin{equation*}
 p(\theta | X,y) = \frac{p(y | \theta,X) p(\theta)}{\displaystyle \int \left( p(y | \theta,X) p(\theta) \right) \ d\theta}
@@ -889,11 +906,6 @@ In other words a normal prior is equivalent to $L2$ regularisation of the parame
 
 Choosing different priors will lead to different regularisation of the parameters.
 
-
-
-
-\newpage
-\section{Data handling in Python}
 
 
 
