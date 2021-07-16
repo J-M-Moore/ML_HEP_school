@@ -1020,6 +1020,618 @@ Choosing different priors will lead to different regularisation of the parameter
 
 
 
+\newpage
+\section{Quality metrics for regression and classification}
+
+\subsection{Quality metrics for regression models}
+Consider a dataset described by design matrix $X$ and target values $\vec{y}$, and a linear regression model:
+\begin{equation*}
+\hat{\vec{y}} = X\vec{w},
+\end{equation*}
+where $\vec{w}$ are the parameters (weights) of the model (previously denoted as $\pmb{\theta}$). Our goal is to \textit{measure the quality} of this model - in other words, estimate how close predictions $\hat{\vec{y}}$ are to the real target values. This is measured by a \textit{loss function}, also called a \textit{quality metric} in this section of the course.\\ 
+
+We have already seen some examples of quality metrics: for example, mean squared error (MSE) and mean absolute error (MAE). Sometimes MSE is replaced by \textit{root mean squared error} (RMSE):
+\begin{equation*}
+\sqrt{\frac{1}{N} \sum_{i=1}^{N} (\hat{y}_i - y_i)^2}.
+\end{equation*} 
+With these metrics, it can be hard to tell if a model is good: for example, if RMSE$=1$, the model quality can be different for mean target values of $\overline{y} = 100$ and $\overline{y} = 1$.\\
+
+Another popular metric is MAPE, which we also saw before. It is defined by:
+\begin{equation*}
+\frac{100}{N} \sum_{i=1}^{N} \left| \frac{\hat{y}_i - y_i}{y_i} \right|.
+\end{equation*}
+It measures the relative error of the prediction. It is easy to understand the quality of the model, but it is sensitive to the $y$ scale.\\
+
+Two other quality metrics arE:
+\begin{itemize}
+\item \textbf{Relative square error (RSE).} This is given by:
+\begin{equation*}
+\sqrt{\frac{\displaystyle \sum_{i=1}^{N} (y_i - \hat{y}_i)^2}{\displaystyle \sum_{i=1}^{N} (y_i - \overline{y})^2}}.
+\end{equation*}
+This metric measures how the average square error differs from the squared standard deviation of the real target values.
+\item \textbf{Relative absolute error (RAE).} This is given by:
+\begin{equation*}
+\frac{\displaystyle \sum_{i=1}^{N} |y_i - \hat{y}_i|}{\displaystyle \sum_{i=1}^{N} |y_i - \overline{y}|}.
+\end{equation*}
+Similarly, this metric measures how the average absolute error of the model differs from the the median value of the real target values.
+\end{itemize}
+The main advantage of these metrics is that they are robust to the scale of the target values $y$.
+
+
+\newpage
+The final quality metric we will consider is \textit{root mean squared logarithmic error} (RMSLE), which we also saw before:
+\begin{equation*}
+\sqrt{\frac{1}{N} \sum_{i=1}^{N} \left( \log(y_i + 1) - \log(\hat{y}_i + 1) \right)^2}.
+\end{equation*}
+It is similar to root mean square error, but uses logarithmic values instead. It is used in cases when the target changes by several orders of magnitude - in such cases, the other quality metrics will measure quality less accurately.
+
+\begin{frameex}
+Consider the linear regression shown below:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{qualitycomparison1.png}
+\end{figure}
+Computing all of the quality metrics in this case, we have:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{qualitycomparison2.png}
+\end{figure}
+Note that MAPE fails because of the $y$ scale, and the fact that some $y_i$ are close to zero.\\
+
+Now consider adding a single outlier to the dataset:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{qualitycomparison3.png}
+\end{figure}
+
+
+\newpage
+The outlier significantly affects the metrics:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{qualitycomparison4.png}
+\end{figure}
+However, we note that MAE and RAE are the most robust against the addition of the outlier.
+\end{frameex}
+
+\minirule
+
+\subsection{Quality metrics for classification models}
+Consider a binary classification problem with a data sample and a classifier (into two classes `positive' and `negative'), as shown in the figure. We use a logistic regression model to find the decision boundary.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{classifierquality.png}
+\end{figure}
+The goal is to measure the quality of the classifier, i.e. to estimate how well it separates objects of different classes.\\
+
+To measure the model's quality, we introduce a \textit{confusion matrix}:
+
+\begin{framedef}
+A \textit{confusion matrix} is a matrix of the form:
+\begin{equation*}
+\begin{pmatrix} \text{TP} & \text{FN} \\ \text{FP} & \text{TN} \end{pmatrix}.
+\end{equation*}
+The element TP represents the number of objects which are positive and are correctly predicted as positive (\textit{true positives}). The element FN represents the number of objects which are positive and are incorrectly predicted as negative (\textit{false negatives}).\\
+
+The element FP represents the number of objects which are negative and are incorrectly predicted as positive (\textit{false positives}). The element TN represents the number of objects which are negative and are correctly predicted as negative (\textit{true negatives}).
+
+
+\newpage
+In the example above, we have the following assignments:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{confusionmatrix.png}
+\end{figure}
+We also define some additional quantities:
+\begin{itemize}
+\item The number of all positives is $\text{Pos} = \text{TP} + \text{FN}$.
+\item The number of all negatives is $\text{Neg} = \text{TN} + \text{FP}$.
+\item The number of all positive predictions is $\text{PosPred} = \text{TP} + \text{FP}$.
+\item The number of all negative predictions is $\text{NegPred} = \text{TN} + \text{FN}$.
+\end{itemize}
+\end{framedef}
+
+Using these quantities, we can define different quality metrics. The first metric we define is \textit{accuracy}:
+
+\begin{framedef}
+The \textit{accuracy} of a classifier is defined by:
+\begin{equation*}
+\text{Accuracy} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{FN} + \text{TN} + \text{FP}} = \frac{\text{TP} + \text{TN}}{\text{Pos} + \text{Neg}}.
+\end{equation*}
+A complementary quality metric is \textit{error rate}, defined by:
+\begin{equation*}
+\text{Error rate} = 1 - \text{Accuracy}.
+\end{equation*}
+These metrics are symmetric and measure quality of classification of both classes equally.
+\end{framedef}
+
+
+
+
+\newpage
+Other metrics measure how well a classifier identifies positive objects only (i.e. they are asymmetric). Examples include:
+\begin{framedef}
+\begin{itemize}
+\item \textit{Precision} of a classifier is defined by:
+\begin{equation*}
+\text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}} = \frac{\text{TP}}{\text{PosPred}}.
+\end{equation*}
+\item \textit{Recall} of a classifier is defined by:
+\begin{equation*}
+\text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}} = \frac{\text{TP}}{\text{Pos}}.
+\end{equation*}
+\item The $F_1$-\textit{score} of a classifier is the harmonic mean of precision and recall, defined by:
+\begin{equation*}
+F_1 = \frac{2 \cdot \text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}.
+\end{equation*}
+\end{itemize}
+\end{framedef}
+
+
+\begin{frameex}
+Consider the classifier example we showed at the start of this section:
+\begin{figure}[H]
+\centering 
+\includegraphics[scale=0.4]{classcomparison.png}
+\end{figure}
+Computing all of the above metrics on this example, we find:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{classcomparison2.png}
+\end{figure}
+All them metrics give the same value in this case, because of the symmetry of the problem. Later we will see other cases.
+\end{frameex}
+
+
+
+\newpage
+Recall that when we did classification problems with logistic regression earlier, we could also have based our ideas on \textit{probabilities}. If an object has a probability $p$ of being in the positive class, we predict it to have value $1$ if $p \geq 0.5$ and value $0$ if $p < 0.5$.\\
+
+The probability in the above example is distributed as a gradient instead of a hard cutoff like the decision boundary:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.35]{classifierprobability.png}
+\end{figure}
+
+We can use these probabilities to define quality metrics.
+
+\begin{framedef}
+The \textit{receiver operating characteristic curve} (ROC curve) is a curve relating the \textit{true positive rate} $\text{TPR}(\mu)$ and the \textit{false positive rate} $\text{FPR}(\mu)$ for different `thresholds' $\mu$ of the predicted probabilities $p$. We make the following definitions first:
+\begin{itemize}
+\item The \textit{true positive rate} is defined by:
+\begin{equation*}
+\text{TPR}(\mu) = \frac{1}{\text{Pos}} \sum_{i \in \text{Pos}} 1_{\{p_i \geq \mu\}} = \frac{\text{TP}(\mu)}{\text{Pos}},
+\end{equation*}
+where $\text{TP}(\mu)$ is the number of true positives which have predicted probability of being positive greater than $\mu$.
+\item The \textit{false positive rate} is defined by:
+\begin{equation*}
+\text{FPR}(\mu) = \frac{1}{\text{Neg}} \sum_{i \in \text{Neg}} 1_{\{p_i \geq \mu\}} = \frac{\text{FP}(\mu)}{\text{Neg}},
+\end{equation*}
+where $\text{FP}(\mu)$ is the number of false positives which have predicted probability of being positive greater than $\mu$.
+\end{itemize}
+The ROC curve is the curve in the $\text{TPR}, \text{FPR}$ plane parametrised by the threshold $\mu$.
+\end{framedef}
+
+\begin{frameex}
+For our example above, with the `gradient of probabilities' shown in the figure, the ROC curve looks like:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{roccurve.png}
+\end{figure}
+\end{frameex}
+
+
+\newpage
+In high energy physics, we very often plot dependency of \textit{background reduction} from \textit{signal efficiency}. In this case, \textit{signal efficiency} is to be interpreted as the true positive rate and \textit{background reduction} is to be interpreted as one minus the false positive rate. The resulting curves are very similar to the ROC curve.\\
+
+Next, we should comment on the interpretation of the ROC curve. The quality of a classifier is related to \textit{area under the ROC curve}.
+
+\begin{framedef}
+We define the quality metric \textit{ROC AUC} to be the \textit{area under the ROC curve}. We note that:
+\begin{itemize}
+\item ROC AUC $\in [0,1]$.
+\item ROC AUC $= 0.5$ corresponds to random guessing.
+\item ROC AUC $=1$ means ideal classification.
+\item ROC AUC $=0$ also means ideal classification, but for opposite labels!
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{roccurveinterpretation.png}
+\end{figure}
+\end{framedef}
+
+Similarly to the ROC curve, we can also define a \textit{precision-recall curve} (PR), the curve with coordinates $(\text{Recall}(\mu), \text{Precision}(\mu))$ as the probability threshold $\mu$ is varied. This also induces a quality metric using the area under the curve (PR AUC).
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{prcurve.png}
+\end{figure}
+
+
+
+\newpage
+\begin{frameex}
+We can investigate each of these quality metrics by \textit{fixing a model} but \textit{changing the class balance} in the test sample. Let's choose to make the balances $1:1$, $1:10$ and $10:1$ as shown below:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{oneoneratio.png}
+\includegraphics[scale=0.3]{onetenratio.png}
+\includegraphics[scale=0.3]{tenoneratio.png}
+\end{figure}
+The resulting quality metrics are given by:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{classifiertable.png}
+\end{figure}
+With the class balance changing, some metrics change. We note that:
+\begin{itemize}
+\item Recall and ROC AUC do not change with the class balance changing. This is a general feature.
+\item Accuracy did not change with the class balance changing - however, this isn't true in general.
+\end{itemize}
+\end{frameex}
+
+
+
+
+\newpage
+\section{Model tests}
+
+\subsection{Train/test split}
+We have already discussed the need for splitting our data into a training set and a test set. This is a quick reminder of how we can use this in regression and classification.
+
+\begin{frameex}
+Consider a binary classification problem. We randomly divide our data into two equal samples: \textit{train} and \textit{test}. We use the train sample to fit a classifier. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{classifierexample.png}
+\includegraphics[scale=0.4]{fittedclassifier.png}
+\end{figure}
+Note that in our case, the fitted model has quite an irregular decision boundary - this suggests that some overfitting has taken place, and the model may not be very generalisable.\\
+
+After fitting the model, we can evaluate quality metrics on both the train and test sets. We find:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{testtrain.png}
+\end{figure}
+The values on the training set are greater than on the test set. The reason that this has occurred is that the classifier has learned the training sample specifics, i.e. it has \textit{overfitted}.\\
+
+As a result, the quality metrics are larger on the training set, but since these specifics are \textit{not} properties of the classes, they are not observed in the test sample - thus the classifier makes more mistakes on the test set, and the quality metrics are smaller on that set.\\
+
+As a general rule: the larger differences between the metrics on the train and test set, the greater the extent of model overfitting.
+\end{frameex}
+
+
+
+\newpage
+Let's consider train/test splits in general. We would like to divide our original dataset (written as $(X,y)$ where $X$ is our design matrix and $y$ is our tuple of predictions) into a train set (used to fit and tune a model) and a test set (used to measure the quality of the model). 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{traintestsplit.png}
+\end{figure}
+We can then tune \textit{hyperparameters} in our model, for example coefficients in some regularisation method, refit the model on the training and measure its quality on the test. Overall our aim is to increase quality on the test.\\
+
+How do we come up with a strategy for dividing data between a train and test set? In general we do the following:
+\begin{itemize}
+\item Data is divided between the train and test \textit{randomly} to ensure distributions on the train and test are similar.
+\item Usually we take the train size greater than or equal to the test size. Typical proportions include $1:1$ or $2:1$.
+\item The larger the training size, the better the model will fit. However, if the test size is larger, our quality measurements on the test set will be more accurate.
+\item The test size can also be \textit{estimated} based on a desired acceptable uncertainty of the quality metrics.
+\end{itemize}
+In general, a large part of the data is not used for the model fit. This might be crucial for small dataset.\\
+
+Even when we have a train/test split, if we turn our model too long using the same \textit{test} sample, we can find values of the model's hyperparameters such that we \textit{overfit} on the \textit{test} set! To prevent this, we can split our data into \textit{train, validation} and \text{test} sets.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{traintestvalidation.png}
+\end{figure}
+As before, the train set is used to fit and tune the model. The \textit{validation} set is used to measure the quality of the model during its tuning when we are searching for the best hyperparameter values. The \textit{test} set is used only for the final quality measurement (after tuning). This quality is considered the quality of the model.
+
+
+
+\newpage
+\subsection{Cross-validation methods}
+We will now discuss various methods of \textit{cross-validation}. The first we consider is \textit{$k$-folding}. 
+
+\begin{framedef}
+In the method of \textit{$k$-folding}, the dataset is split into $k$ parts, or $k$ `folds'. One fold is used to measure quality of the model (as a \textit{validation set}), whilst the other $k-1$ folds are used to train the model. This procedure is repeated $k$ times, and the average quality metric on the validation sets is computed to estimate the final quality; we can also collect the standard deviation of the quality metrics (or different confidence levels for example).
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{kfolding.png}
+\end{figure}
+The main disadvantage of this procedure is that it is very time-consuming - it requires fitting the model $k$-times. Typical numbers of folds are around $5$-$10$.
+\end{framedef}
+
+A useful modification is \textit{stratified $k$-folding}. This works exactly the same as normal $k$-folding, but when the folds are created, the \textit{same} class balance is used across all folds. This method is useful when we have large class imbalances and small datasets.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{stratifiedkfolding.png}
+\end{figure}
+
+An extreme case of $k$-folding is \textit{leave one out} cross-validation. This is $k$-folding where the number of folds is equal to the size of the dataset, and can be useful for very small sample sizes.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{leaveoneout.png}
+\end{figure}
+In detail, consider a sample with $N$ objects. For $N$ iterations, remove the $i$th object from the sample, and fit the model using the remaining $N-1$ objects. Using the model, make a prediction for the $i$th object and save it. Collect all predictions and measure the quality of the model.\\
+
+Note that the models from each iteration will be approximately the same (since we hardly change the dataset). Therefore, the predictions will demonstrate a very small variance. \\
+
+Yet another similar approach is \textit{leave $p$ out} cross-validation. Here, we simply remove $p$ randomly selected objects instead of one, for each iteration. As a result, fewer iterations are required.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{leavepout.png}
+\end{figure}
+
+
+\minirule
+
+The \textit{bootstrap method} is described as follows:
+\begin{itemize}
+\item Consider a sample of size $n$ as shown in the figure below. We generate $B$ sets of `bootstrap samples' also of size $n$; these are generated by randomly sampling objects from the original sample \textit{with replacement}. Thus an object can appear in a bootstrap sample several times.
+\item For each of the $B$ bootstrap samples, a target is estimated (e.g. if we  wanted to estimate the mean of the whole sample, we could compute the mean on each of the $B$ boostrap sets).
+\item Compile a list of the $B$ target estimates. Make further inference from these values, e.g. compute their mean, standard deviation, or even plot their distribution.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{bootstrap.png}
+\end{figure}
+
+
+
+\newpage
+The bootstrap method can be used for a cross-validation method called \textit{out-of-bag bootstrap}. The method is as follows:
+\begin{itemize}
+\item Given a dataset of size $n$, we create $B$ random bootstrap samples of size $n$ by sampling \textit{with replacement} as usual. These samples become \textit{training sets}.
+\item For each of the $B$ bootstrap samples, determine which elements of the original dataset are not present in the particular sample. These objects comprise \textit{test sets} for each of the corresponding training sets; we can compute required quality metrics on these sets.
+\end{itemize}
+Once we are done, we can estimate the mean and standard deviation of the quality metrics.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{outofbagbootstrap.png}
+\end{figure}
+
+
+
+
+
+
+\newpage
+
+\subsection{Quality metric uncertainty estimation}
+Our goal in this section is to estimate uncertainty of the quality metric on the test set. Again, we can use the bootstrap method:
+\begin{itemize}
+\item Suppose we are given a model fitted on a training set. Suppose that there are $N$ objects in a corresponding test set.
+\item For $i=1,...,B$ bootstrap sample (typically of the order of hundreds or thousands):
+\begin{itemize}
+\item Sample \textit{with replacement} a subsample with $N$ objects from the test sample.
+\item Calculate quality metrics on this subsample.
+\end{itemize}
+\item Estimate statistics of this metrics, for example \textit{mean}, \textit{variance}, \textit{confidence intervals}.
+\end{itemize}
+The main advantage of this approach is that it is completely universal - it can be used for any model and any metric. It also does not required fitting the model times.
+
+\begin{frameex}
+In the binary classification example before, with model:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{fittedclassifier.png}
+\end{figure}
+applying the bootstrap method gives the following uncertainties:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{bootstrapuncertainties.png}
+\end{figure}
+The means are the same as those computed on the test set, but now we have uncertainties on these values.
+\end{frameex}
+
+We can also use cross-validation methods as previously described to estimate the quality metric uncertainties. For example, $k$-folding or out of bag bootstrap can be applied in similar ways - however, these require fitting a model several times.
+
+
+
+\newpage
+\subsection{Statistical model comparison}
+Consider two different models fitted on the same training sample:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{statisticalcomparison.png}
+\end{figure}
+How do we know which model is statistically better? Visually, the model in the left figure has more of a regular separation surface. Additionally, the mean accuracy of the model on the left is higher, but it has a lower uncertainty on accuracy than the model on the right hand side.\\
+
+To distinguish between the models, we use \textit{hypothesis testing}. We have two hypotheses in this case:
+\begin{itemize}
+\item $H_0$: the models have the same quality (the \textit{null hypothesis}).
+\item $H_1$: the models have different qualities.
+\end{itemize}
+To test whether to reject the null hypothesis $H_0$ or not, we do the following:
+\begin{itemize}
+\item Select a test statistic, and calculate its value under the null hypothesis.
+\item Estimate the $p$-value for the observed statistic value.
+\item Compare the $p$-value with the given \textit{significance level}.
+\item Based on a decision rule, reject $H_0$ and accept $H_1$ \textit{or} do not reject $H_0$.
+\end{itemize}
+These steps are illustrated in the following image:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{hypothesistesting.png}
+\end{figure}
+
+
+\newpage
+Examples of tests and statistics are described as follows. First, consider the \textit{resampled paired $t$-test}:
+\begin{itemize}
+\item Given two models $A$ and $B$, for $i=1,...,k$:
+\begin{itemize}
+\item Randomly split the data into training and test samples.
+\item Fit the models $A$ and $B$ on the training sample.
+\item Compute quality metrics $q_{Ai}$ and $q_{Bi}$ for the models on the test sample.
+\end{itemize}
+\item Compute the following $t$-statistic with $k-1$ degrees of freedom under the null hypothesis that the models have equal quality:
+\begin{equation*}
+t = \frac{\overline{q} \sqrt{k}}{\sqrt{\displaystyle \sum_{i=1}^{k} (q_i - \overline{q})^2 / (k-1)}},
+\end{equation*} 
+where $q_i = q_{Ai} - q_{Bi}$ and $\overline{q} = \displaystyle \sum_{i=1}^{k} q_i$. 
+\item Given the estimate $t$-statistic value, we compute the $p$-value for this statistic using \textit{Student's distribution} for $k-1$ degrees of freedom. We compare this $p$-value with the chosen \textit{significance level} (e.g. $\alpha = 0.05$).
+\item If the $p$-value is less than $\alpha$, the null hypothesis is rejected. This means that there is a significant difference between the models.
+\end{itemize}
+
+\begin{frameex}
+For the two models at the start of this section, we can compute the $t$-statistic to be $t = 1.930$. The $p$-value is then given by $0.063$. This is larger than $0.05$, so the null hypothesis is not rejected. The models are \textit{not} significantly different in terms of accuracy.
+\end{frameex}
+
+\minirule
+
+Another test is \textit{Dietterich's $5\times2$-fold CV paired test}:
+\begin{itemize}
+\item Given two models $A$ and $B$, for $i=1,...,5$:
+\begin{itemize}
+\item Randomly split the data into training and test samples. Fit the models $A$ and $B$ on the training sample. Compute quality metrics $q_{Ai}^{(1)}$ and $q_{Bi}^{(1)}$ for the models on the test sample.
+\item \textit{Rotate} the training and test samples: fit the models on the test, compute the metrics $q_{Ai}^{(2)}$ and $q_{Bi}^{(2)}$ on the training sample.
+\item Compute the following values:
+\begin{equation*}
+q_i^{(1)} = q_{Ai}^{(1)} - q_{Bi}^{(1)}, \qquad q_i^{(2)} = q_{Ai}^{(2)} - q_{Bi}^{(2)}, \qquad \overline{q}_i = \frac{q_i^{(1)} + q_i^{(2)}}{2}, \qquad s_i^2 = (q_i^{(1)} - \overline{q}_i)^2 + (q_i^{(2)} - \overline{q}_i)^2.
+\end{equation*}
+\end{itemize}
+\item Then calculate the following $t$-statistic with $5$ degrees of freedom and the null hypothesis that the models $A$ and $B$ have equal qualities:
+\begin{equation*}
+t = \frac{q_1^{(1)}}{\sqrt{\displaystyle \frac{1}{5} \sum_{i=1}^{5} s_i^2}}.
+\end{equation*}
+\item Compute the $p$-value for this statistic using Student's distribution for $5$ degrees of freedom. Compare the $p$-value with the chosen significance level $\alpha$. If the $p$-value is less than $\alpha$, the null hypothesis is rejected and there is a significant difference between the two models.
+\end{itemize}
+
+\newpage
+\begin{frameex}
+Applying this test to the above example, we find that $t = 2.073$ and the $p$-value is $0.093$. We see that the null hypothesis is \textit{not} rejected, and again we conclude that the models are not significantly different in terms of accuracy.
+\end{frameex}
+
+There are many other available tests, including:
+\begin{itemize}
+\item Alpaydin's combined $5 \times 2$ CV $F$-test.
+\item Cochran's $Q$-test.
+\item Friedman's test.
+\end{itemize}
+However, a detailed discussion is beyond the scope of these lectures.
+
+
+
+
+\newpage
+\section{Decision trees}
+
+\subsection{Decision tree training}
+Decision trees are a machine learning algorithm for classification and regression. Decision trees themselves predate machine learning, and can are used to make a decision e.g.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{decisiontree.png}
+\end{figure}
+In our case, we would like to build a decision tree for example for classification problems, to decide which class a given element belongs to (hence a decision tree determines a decision boundary).\\
+
+In general, building an optimal decision tree is an NP-complete problem. Therefore, in practice we use a \textit{greedy algorithm} to build a decision tree - on each iteration, we partition the data as if the split was final (we don't think ahead at all). There are two key components:
+\begin{itemize}
+\item A split criterion to compare different ways to partition the data.
+\item A stopping condition to decide when to stop building the tree.
+\end{itemize}
+Formally:
+\begin{framedef}
+We define \textit{greedy decision tree learning} as follows. Suppose we are given an input training set $D = \{(x_i,y_i) : i = 1,..., N\}$. For each node in the tree $u$, we write $R_u \subseteq D$ as the data subset associated with this node. To build each $R_u$ we do the following:
+\begin{enumerate}[label = (\arabic*)]
+\item Set the first node in the tree $R_{\text{start}} = D$ to be equal to the whole dataset.
+\item Given $R_u$ left unsplit and not a leaf, we greedily split $R_u$ into $R_l$ and $R_r$ given by:
+\begin{equation*}
+R_l(j,t) = \{\vec{x} \in R_u : x^j \leq t\}, \qquad R_r(j,t) = \{\vec{x} \in R_u : x^j > t\},
+\end{equation*}
+where $j$ is a particular feature, optimising a given loss $Q(R_u,j,t)$ over $(j,t)$.
+\item If a stopping criterion is satisfied for $u$, declare it a \textit{leaf} of the true.
+\item If not, create an internal node $u$ corresponding to the predicate $x^j \leq t$ and repeat from Step 2 for $R_u = R_l(j,t)$ and $R_u = R_r(j,t)$. 
+\end{enumerate}
+\end{framedef}
+
+\newpage
+A good split at any point in the building of a decision tree is one that maximises \textit{purity}; i.e. objects in the split are as uniform as possible:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{goodsplit.png}
+\end{figure}
+
+We can formalise the purity by carefully discussing the loss function $Q(D,j,t)$ above. Recall that $R_u$ is the subset of $D$ corresponding to the node $u$. With the current split, let $R_l \subseteq R_u$ go left and $R_r \subseteq R_u$ go right. We choose a predicate to maximise:
+\begin{equation*}
+Q(R_u, j, t) = H(R_u) - \frac{|R_l|}{|R_u|} H(R_l) - \frac{|R_r|}{|R_u|} H(R_r),
+\end{equation*}
+where $H(R)$ is some impurity criterion. Generally, we take:
+\begin{equation*}
+H(R) = \min_{c \in \mathcal{Y}} |R|^{-1} \sum_{(x_i,y_i) \in R} \mathcal{L}(y_i, c),
+\end{equation*}
+where $\mathcal{L}$ is a loss function, penalising wrong predictions.
+
+\begin{frameex}
+Some examples of impurity criterion include:
+\begin{itemize}
+\item For regression, we might choose MSE:
+\begin{equation*}
+H(R) = \min_{c \in \mathcal{Y}} |R|^{-1} \sum_{(x_i,y_i) \in R} (y_i - c)^2.
+\end{equation*}
+This is minimised by $c = |R|^{-1} \displaystyle \sum_{(x_j,y_j) \in R} y_j$, which makes the impurity the variance of the target.
+\item For classification, we can enumerate $\mathcal{Y} = \{y_1,...,y_N\}$. We then let:
+\begin{equation*}
+p_k = |R|^{-1} \sum_{(x_i,y_y) \in R} 1_{\{y_i = y_k\}}
+\end{equation*}
+be the share of examples belonging to the $k$th class.\\
+
+We could choose the impurity to be the \textit{miss rate} (inaccuracy):
+\begin{equation*}
+H(R) = \min_{c \in \mathcal{Y}} |R|^{-1} \sum_{(x_i,y_i) \in R} 1_{\{y_i \neq c\}}.
+\end{equation*}
+We could also choose the impurity to be the \textit{Gini index}:
+\begin{equation*}
+H(R) = \sum_{k=1}^{N} p_k(1-p_k).
+\end{equation*}
+Finally, we could choose the impurity to be the \textit{cross-entropy}:
+\begin{equation*}
+H(R) = -\sum_{k=1}^{N} p_k \log(p_k).
+\end{equation*}
+\end{itemize}
+\end{frameex}
+
+
+
+\newpage
+\subsection{Stopping rules for decision tree learning}
+What will happen if we build a decision tree to minimise the impurity to the greatest possible extent? The tree will be built until all leaves are $100$\% pure, with some leaves only containing a single example. This corresponds to a \textit{dramatic overfitting}. For example: 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{decisiontreeoverfitting.png}
+\end{figure}
+
+Clearly we need to know when to stop the training to avoid overfitting. There are multiple choices available:
+\begin{itemize}
+\item Impose a maximum tree depth.
+\item Impose a minimum number of objects in a leaf.
+\item Impose a maximum number of leaves in a tree.
+\item Stop if all objects fall into the same leaf.
+\item Constrain \textit{quality improvement} (stop when improvement gains drop below a defined threshold).
+\end{itemize}
+There is no general way to select the best choice. It is typically decided by exhaustive search and cross-validation.
+
+\minirule
+
+A useful technique that can help to avoid overfitting is \textit{decision tree pruning}. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{pruning.png}
+\end{figure}
+We train a very large tree (effectively overfitting the training set), then remove the least important nodes. This often leads to better result than simply training a small tree.\\
+
+The reason why is as follows. When we build a tree, we use a greedy algorithm - we never look ahead or plan smart moves. In particular, pruning allows us to recover some of this missing foresight.
+
+
+
+
 
 
 \end{document}
