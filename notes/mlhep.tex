@@ -1024,6 +1024,7 @@ Choosing different priors will lead to different regularisation of the parameter
 \section{Quality metrics for regression and classification}
 
 \subsection{Quality metrics for regression models}
+\describesection{Effect of outliers.}
 Consider a dataset described by design matrix $X$ and target values $\vec{y}$, and a linear regression model:
 \begin{equation*}
 \hat{\vec{y}} = X\vec{w},
@@ -1628,6 +1629,475 @@ A useful technique that can help to avoid overfitting is \textit{decision tree p
 We train a very large tree (effectively overfitting the training set), then remove the least important nodes. This often leads to better result than simply training a small tree.\\
 
 The reason why is as follows. When we build a tree, we use a greedy algorithm - we never look ahead or plan smart moves. In particular, pruning allows us to recover some of this missing foresight.
+
+
+
+
+
+
+
+
+
+\newpage
+\section{Feature engineering, importance and selection}
+
+
+\subsection{Feature engineering}
+\begin{frameex}
+Consider a binary classification problem in 2D with a logistic regression classifier:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{circles.png}
+\end{figure}
+The classes are concentric circles, and the classifier \textit{cannot} separate them using only the input features $X_1, X_2$ - they are not linearly separable.\\
+
+Let's create the new feature $X_3 = X_1^2 + X_2^2$. This feature helps to separate the circles by a straight line. Now, logistic regression can solve the classification problem ideally using all three features $X_1, X_2$ and $X_3$. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{circles2.png}
+
+\end{figure}
+\end{frameex}
+
+The above example shows how `feature engineering' can improve the predictions of linear models.
+
+
+
+
+\newpage
+\begin{frameex}
+Consider another example where the two classes are separated by the surface $X_2 - X_1 = 0$. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{treeline.png}
+\end{figure}
+These classes are linearly separable, and can be found using a logistic regression model.\\
+
+However, the problem is difficult to solve with a decision tree classifier (as shown above - it splits input feature space with \textit{rectangles}). It requires larger depth of the tree to separate the classes properly.\\
+
+If we introduce the new feature $X_3 = X_2 - X_1$, we help the classifier. Now the classes can be separated using just one predicate $X_3 > 0$. It requires a decision tree with depth $1$ to solve the problem ideally.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{treeline2.png}
+\end{figure}
+\end{frameex}
+
+These two examples show that creating new features can:
+\begin{itemize}
+\item Improve the quality of a model.
+\item Reduce the complexity of a model (see the shorter decision tree in the second example).
+\item Speed up model training (due to reduced complexity).
+\item Reduce dimensionality of a problem by removing less informative features (e.g. $X_1, X_2$ in previous examples - these can be removed without losing the model's qualtiy!).
+\end{itemize}
+
+
+
+
+\newpage
+But how do we choose which new features will be useful? There are some general principles:
+\begin{itemize}
+\item Use any information about the problem we have. In the above examples the information we had was the shape of the classes and the border between them.
+\item Create features with physical meaning (e.g. $\sqrt{X_1^2 + X_2^2}$ is radius). For example in high energy physics, we might like to use momenta, mass, angles, etc.
+\item Remove limitations of a model (like with the decision tree in example 2).
+\end{itemize}
+
+Given an initial set of input features $X_1,...,X_n$, typical feature combinations include:
+\begin{itemize}
+\item Powers and products, e.g. $X_i^p$, $X_1X_2$.
+\item Sums and differences of squares, e.g. $X_1^2 \pm X_2^2$.
+\item Sums and differences, e.g. $X_1 \pm X_2$.
+\item Sum and difference quotients, e.g.
+\begin{equation*}
+\frac{X_1 \pm X_2}{X_1 \mp X_2}
+\end{equation*}
+\item More complicated functions, e.g.
+\begin{equation*}
+\sin(X_1), \qquad \cos(X_1).
+\end{equation*}
+\end{itemize}
+
+\minirule
+
+\subsection{Feature importance}
+Let us try to address the problem of which features are important more carefully.\\
+
+A dataset can have a lot of features, but not all features are equally useful for a given regression or classification task. Some of them are more informative than others. Consider the example below:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{uselessfeature.png}
+\end{figure}
+
+We see that the feature $X_1$ is completely uninformative for the classification problem, and can be skipped. We can easily spot this from the plot of the data, but how can we do this in multi-dimensional cases? Our goal should be to measure the importance of each feature in the general case somehow.
+
+
+
+
+
+
+\newpage
+There are several different methods to achieve this:
+\begin{itemize}
+\item Correlations between features and target values.
+\item Probabilistic distances.
+\item Decision tree-based feature importance.
+\item Linear model-based feature importances.
+\end{itemize}
+Finally we will consider a completely general algorithm which can be applied for any classification or regression problem.\\
+
+We begin with correlations:
+\begin{framedef}
+Let $f$ be a feature and let $y$ be a target. Denote by $f_i$ the value of the feature for the $i$th object in a dataset, and by $y_i$ the value of the target for the $i$th object in a dataset (this corresponds to labels $0$ or $1$ for example in a binary classification problem, or to the target values in a regression problem). We define the \textit{Pearson correlation coefficient} by:
+\begin{equation*}
+\rho(f, y) = \frac{\displaystyle \sum_{i} (f_i - \overline{f})(y_i - \overline{y})}{\sqrt{\displaystyle \sum_{i} (f_i - \overline{f})^2 \sum_{i} (y_i - \overline{y})^2}},
+\end{equation*}
+where $\overline{f}$ is the mean of the feature over the dataset, and $\overline{y}$ is the mean of the target values over the dataset. 
+\end{framedef}
+
+This measurement of feature importance is very easy to compute, but captures only linear dependencies in dataset:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{correlationcoefficient.png}
+\end{figure}
+
+Another simple approach is based on \textit{probabilistic distance}:
+\begin{framedef}
+Let $f$ be a feature, and let $y$ be a target taking values $0$ or $1$ (i.e. a binary classifier).
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{featureprobabilities.png}
+\end{figure}
+
+We define the \textit{total variation} between the probability distributions $\mathbb{P}(f | y=0)$ and $\mathbb{P}(f | y = 1)$ to be:
+\begin{equation*}
+\textrm{Imp}(f) = \int \left| \mathbb{P}(f | y = 1) - \mathbb{P}(f | y =0) \right|\ df.
+\end{equation*}
+There are other methods of measuring the distance between probability distributions - we will consider these later in the school. 
+\end{framedef}
+
+
+
+\newpage
+Another approach is based on \textit{decision trees}. Recall from the previous lectures that a decision tree is a binary tree where each node $t$ has two children. Each node uses one feature to make a split into the two children notes. For each node, we compute the number of objects $n_t$ which satisfy the criteria in the node; then for each node we can compute \textit{impurity} functions $I(t)$ (e.g. Gini, cross-entropy, MSE) for the node. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{featuretree.png}
+\end{figure}
+
+\begin{framedef}
+Let $T(f)$ be the set of all nodes which use feature $f$ to make a split. Then feature importance can be estimated by:
+\begin{equation*}
+\textrm{Imp}(f) = \sum_{t \in T(f)} n_t \Delta I(t),
+\end{equation*}
+where the \textit{information} $\Delta I(t)$ contained in the node $t$ is defined by:
+\begin{equation*}
+\Delta I (t) = I(t) - \sum_{c \in \textrm{children}(t)} \frac{n_c}{n_t} I(c).
+\end{equation*}
+\end{framedef}
+This statistic is one of the most popular and important for feature estimation. It takes into account dependencies between different input features, and can capture complicated dependencies between features and the target. It is also implemented in almost all decision tree libraries.\\
+
+Another method is \textit{linear-model based}.
+\begin{framedef}
+Consider a linear model with regularisation (e.g. an $L1$ or $L2$ penalty). The model makes predictions:
+\begin{equation*}
+\hat{y} = w_0 + w_1 f_1 + w_2 f_2 + \cdots + w_k f_k.
+\end{equation*}
+If features are normalised (have the same ranges, e.g. by scaling), the feature importance of $f_i$ is defined to be equal to:
+\begin{equation*}
+\textrm{Imp}(f_i) = |w_i|.
+\end{equation*}
+\end{framedef}
+This method is very simple, but has the same limitations as Pearson correlation - it cannot capture complicated dependencies.
+
+
+
+\newpage
+Now let's consider a completely general approach. Suppose we have a model used for classification or regression.
+\begin{itemize}
+\item We train the model to some training set.
+\item We calculate the quality measure $Q_0$ on some validation set.
+\item For a given feature $f$, we:
+\begin{itemize}
+\item Replace the given values of this feature with random values from the same distribution (for example, you can perform random shuffling of the value of the feature). 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{randomshuffle.png}
+\end{figure}
+\item Compute the new quality measure $Q_f$ on the validation set, and estimate the feature importance as the difference between the initial and current quality metric values:
+\begin{equation*}
+\textrm{Imp}(f) = Q_0 - Q_f.
+\end{equation*}
+\end{itemize}
+\end{itemize}
+
+This is the most powerful method for computing feature importance. It can capture complicated dependencies, and works for any model - e.g. neural networks, which we shall see soon.\\
+
+There is a slight modification to this method which also works:
+\begin{itemize}
+\item We train the model on the \textit{full set of features} (as normal)
+\item We calculate the quality measure $Q_0$ on some validation set.
+\item For a given feature $f$, we:
+\begin{itemize}
+\item Remove the feature $f$ from the dataset, then \textit{refit the model without this feature}. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{featureremoval.png}
+\end{figure}
+\item Compute the new quality measure $Q_f$ on the validation set, and estimate the feature importance as the difference between the initial and current quality metric values:
+\begin{equation*}
+\textrm{Imp}(f) = Q_0 - Q_f.
+\end{equation*}
+\end{itemize}
+\end{itemize}
+The advantage of this approach is that it estimates the feature importances more precisely, and works better for highly correlated input features. However, it requires refitting the model several times - this might be difficult for large models and datasets.\\
+
+There are many other approaches to estimate feature importance which we don't have time to discuss here - for example the method of \textit{Shapley values}, which has a Python implementation.
+
+
+
+
+
+\newpage
+\subsection{Feature selection}
+The goal of \textit{feature selection} is to reduce the number of features with minimal loss of model quality. For example, we might want to keep the best $K$ of $D$ features, or we might want to remove as many features as possible but keeping the quality $Q \geq Q_{\text{min}}$ for some $Q_{\text{min}}$. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{featureselection.png}
+\end{figure}
+
+Three of the most popular methods are the \textit{filter method}, \textit{embedded methods} and \textit{recursive feature elimination}.
+
+\begin{framedef}
+The \textit{filter method} involves estimating the importance of individual features $\textrm{Imp}(f_1), \textrm{Imp}(f_2), ..., \textrm{Imp}(f_D)$ via some method (e.g. correlation, probability distance). We then simply select the required number of features with the highest importances.
+\end{framedef}
+
+This is simple it implement and is quite fast. However, it is bad for highly correlated features, since it may take many redundant features.
+
+\begin{framedef}
+An \textit{embedded method} selects features based on the feature importance of a model.
+\begin{itemize}
+\item In a linear model, an embedded method selects the best features using the weights of the model (as above).
+\item For a decision tree, the best features are selected using their decision tree importance (as above).
+\end{itemize}
+\end{framedef}
+Embedded methods is widely used and take into account correlation between features.\\
+
+Finally, we have \textit{recursive feature elimination}. Uninformative features are removed one by one, based on deleting the least important feature at each step. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{recursivefeature.png}
+\end{figure}
+
+The steps are as follows:
+\begin{itemize}
+\item Train a model on the full set of features, and estimate the importance of each feature based on the model.
+\item Remove the least importance features (or several features).
+\item Repeat until we have the desired number of features remaining.
+\end{itemize}
+In combination with the general method for feature importance estimation, this is one of the most powerful methods for feature selection. It is applicable to any regression or classification problem.
+
+
+
+
+
+
+\newpage
+\section{Clustering}
+
+So far, we have studied classification and regression models. These are models of `supervised learning' where we know exactly what to predict - class labels for classification or real labels for regression.\\
+
+In this section, we will discuss \textit{clustering}, where we do not have any target values for predictions. Therefore clustering is a topic of `unsupervised machine learning'.
+
+\minirule
+
+\subsection{Clustering vs classification}
+Consider a binary classification problem, where we have object features $X$ and class labels $y \in \{0,1\}$. A classifier learns a decision rule $f$, so that $f(X) \approx y$. The trained classifier predicts class labels for the new objects.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{supervisedclassifier.png}
+\end{figure}
+In clustering, we don't have class labels $y$. The goal is to divide all objects into separate groups using only object features $X$ - these groups are called \textit{clusters}. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{clusterclassification.png}
+\end{figure}
+We would like to cluster the objects such that \textit{objects inside clusters are similar}, and \textit{objects from different clusters are dissimilar}. In the above figure, `similarity' can be defined as proximity to the other objects.\\
+
+Most clustering algorithms are based on the following assumptions:
+\begin{itemize}
+\item Objects form \textit{dense} clusters. This means that the object density inside one cluster is larger than between the clusters.
+\item Objects from one cluster are somehow similar, whilst objects from different clusters are somehow dissimilar. Often similarity between objects is based on `distance' between them.
+\item Distances between neighbours within one cluster are smaller than between objects from different clusters.
+\end{itemize}
+
+
+
+\newpage
+\subsection{$K$-means}
+The most popular clustering approach is the approach of \textit{$K$-means}. We develop intuition for this approach as follows.\\
+
+We suppose that each cluster is represented by a \textit{centre}. All objects are assigned to a cluster according to the closest centre. The goal of the problem is therefore to \textit{find centres that form the most compact clusters}.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{kmeans.png}
+\end{figure}
+
+Let's define some notation which we will use throughout this section. Consider a sample with $N$ objects, written $\{x_n\}_{n=1}^{N}$ (where $x_n$ denotes a tuple of features). We will search for $K$ clusters with centres $\{\mu_1,...,\mu_K\}$. The criterion to find the best centres is minimising the \textit{within-cluster distance} over $\mu_1,...,\mu_K$:
+\begin{equation*}
+Q = \sum_{n=1}^{N} \min_{k} \rho(x_n,\mu_k).
+\end{equation*}
+Each object is then assigned to a cluster $z_n \in \{1,2,...,K\}$ via:
+\begin{equation*}
+z_n = \underset{k}{\textrm{argmin}}\ \rho(x_n, \mu_k).
+\end{equation*}
+A general algorithm that achieves this is as follows (called the \textit{$K$-centroid algorithm}):
+\begin{enumerate}[label = (\arabic*)]
+\item Initialise the centres $\mu_1,...,\mu_K$ by randomly selecting $k$ objects from the sample.
+\item Assign each object of the sample to the nearest centre:
+\begin{equation*}
+z_n = \underset{k}{\textrm{argmin}}\ \rho(x_n, \mu_k),
+\end{equation*}
+where $\rho$ is the `distance' between two objects.
+\item Update the centres by minimising the within cluster distance, i.e. determining:
+\begin{equation*}
+\mu_k = \underset{\mu}{\textrm{argmin}} \sum_{n : z_n = k} \rho(x_n, \mu).
+\end{equation*}
+\item If the algorithm has not converged to within some tolerance, go to Step 2 and repeat. Otherwise return $z_1,...,z_N$. 
+\end{enumerate}
+
+
+\newpage
+The above algorithm can use difference distances $\rho$:
+\begin{framedef}
+If $\rho(x_n, \mu_k) = ||x_n - \mu_k||_2^2$, the above algorithm is called the \textit{$K$-means algorithm}. If $\rho(x_n, \mu_k) = ||x_n - \mu_k||_1$, the above algorithm is called the \textit{$K$-medians algorithm}.
+\end{framedef}
+
+The $K$-means algorithm can be implemented efficiently as follows:
+\begin{enumerate}[label = (\arabic*)]
+\item Initialise the centres $\mu_1,...,\mu_K$ by randomly selecting $k$ objects from the sample.
+\item Assign each object of the sample to the nearest centre:
+\begin{equation*}
+z_i = \underset{j \in \{1,2,...,K\}}{\textrm{argmin}}\ ||x_i - \mu_k||_2^2.
+\end{equation*}
+\item Update the centres using the following minimisation (this choice minimises the within-cluster distance):
+\begin{equation*}
+\mu_j = \frac{\displaystyle \sum_{n=1}^{N} 1_{\{z_n = j\}} x_i}{\displaystyle \sum_{n=1}^{N} 1_{\{z_n = j\}}}.
+\end{equation*}
+\item If the algorithm has not converged to within some tolerance, go to Step 2 and repeat. Otherwise return $z_1,...,z_N$. 
+\end{enumerate}
+Below is an example of the convergence of the algorithm:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{kmeansconvergence.png}
+\end{figure}
+
+Let's discuss the properties of the $K$-means algorithm in more detail:
+\begin{itemize}
+\item \textbf{Initialisation.} The centres $\{\mu_k\}_{k=1}^{K}$ are usually initialised randomly from training objects. The number of clusters (and centres) $K$ is usually fixed.
+\item \textbf{Convergence criteria.} There are various methods we could use to check for convergence. For example, we could set some limit on the number of iterations of the algorithm, we could demand that the centres stop changing significantly within some tolerance, or we could ask that the cluster assignments $\{z_n\}_{n=1}^{N}$ stop changing.
+\item \textbf{Solution.} The solution depends on the starting positions of the centres. In particular, this means that the algorithm is sensitive to outliers, and may create single-object clusters. To prevent this it is recommended to run the algorithm with several different initialisations, and select the solution with the minimal within-cluster distance $Q$. 
+\end{itemize}
+
+
+
+\newpage
+Now we understand how $K$-means works, we can ask some interesting questions about it. For example - how do we know how many clusters $K$ to split the data into? Using the wrong number of clusters can lead to bad results, e.g.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{wrongclusters.png}
+\end{figure}
+Let $Q^{(K)}$ denote the within-cluster distances for each possible number of clusters $K$,
+\begin{equation*}
+Q^{(K)} = \sum_{n=1}^{N} ||x_n - \mu_{z_n}||_2^2.
+\end{equation*}
+We wish to minimise this over $z_1,...,z_N, \mu_1,...,\mu_K$.\\
+
+The dependency of $Q^{(K)}$ on $K$ is demonstrated in the figure below for the above example.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{elbow.png}
+\end{figure}
+The dependence has an `elbow' at the optimal number of clusters, $K=5$. Let's try to formalise this notion.\\
+
+We define the function $D(K)$ by:
+\begin{equation*}
+D(K) = \frac{|Q^{(K+1)} - Q^{(K)}|}{|Q^{(K)} - Q^{(K-1)}|}.
+\end{equation*}
+This function takes its smallest value for the optimal number of clusters.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{optimalclusters.png}
+\end{figure}
+
+
+
+
+\newpage
+\subsection{Quality metrics}
+Now we know one clustering algorithm. How do we measure the quality of a clustering algorithm?\\
+
+There are two kinds of quality metrics for clustering models: \textit{supervised} and \textit{unsupervised}.
+\begin{itemize}
+\item \textit{Supervised} quality metrics are based on the ground truth of the object labels. They are invariant to cluster naming. Unfortunately, very often the true labels are unknown and hence it is impossible to use these metrics in this case.
+\item \textit{Unsupervised} quality metrics are based on intuition about `good' clusters. They assume that objects from the same cluster are similar to one another, and objects from different clusters are dissimilar to one another.
+\end{itemize}
+
+One supervised quality metric is the \textit{Rand index}:
+\begin{framedef}
+The \textit{Rand index} is the supervised quality metric defined as:
+\begin{equation*}
+\text{RI} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}}.
+\end{equation*}
+Here, TP denotes \textit{true positives}, the number of pairs in the same cluster in predictions and the ground truth. TN denotes \textit{true negatives}, the number of pairs from different clusters in predictions and the ground truth. FP denotes \textit{false positives}, the number of pairs in the same cluster in predictions, but from different clusters in the ground truth. FN denotes \textit{false negatives}, the number of pairs in the same cluster in the ground truth, but from different clusters in predictions.
+\end{framedef}
+The Rand index takes values in $[0,1]$, where $1$ means perfect clustering. It is similar to accuracy score, but for pairs.\\
+
+A slight modification is:
+\begin{framedef}
+The \textit{adjusted Rand index} (ARI) is defined by:
+\begin{equation*}
+\text{ARI} = \frac{\text{RI} - \text{RI}_{\text{expected}}}{\text{RI}_{\text{max}} - \text{RI}_{\text{expected}}}.
+\end{equation*}
+The expected Rand index is taken by averaging the Rand index over all possible object assignments to the clusters. \\
+
+The ARI has a value close to $0$ for random labelling, independently of the number of clusters and sample, and exactly $1$ when the clustering is ideal.
+\end{framedef}
+
+As we have just seen Rand index is very similar to accuracy score. We can compute similar metrics like precision, recall, or $F_1$-score in the same sorts of ways by just considering pairs.\\
+
+One of the most popular unsupervised metrics is the \textit{silhouette metric}:
+\begin{framedef}
+The \textit{silhouette metric} is defined by:
+\begin{equation*}
+\textrm{Silhouette} = \frac{1}{N} \sum_{i=1}^{N} \frac{d_i  - s_i}{\max(d_i ,s_i)}
+\end{equation*}
+where $s_i$ is the mean distance between the $i$th object and all objects in the same cluster, and $d_i$ is the mean distance between the $i$th object and all objects in the nearest (distinct) cluster. It is based on the idea that objects in one cluster should be closer to one another than objects in different clusters.
+\end{framedef}
+
+\begin{frameex}
+Consider clustering of the following data with $K$ clusters:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{clusterquality1.png}
+\end{figure}
+The quality metrics for the clustering are given below:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{clusterquality2.png}
+\end{figure}
+Each quality metric predicts the optimum number of clusters is $K=5$.
+\end{frameex}
+
+
+
+
 
 
 
