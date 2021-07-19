@@ -1639,6 +1639,349 @@ The reason why is as follows. When we build a tree, we use a greedy algorithm - 
 
 
 \newpage
+\section{Ensemble methods}
+
+Ensemble methods can be used to improve model performance. 
+
+\subsection{Bagging and random forests}
+
+The root of all evil in machine learning is the finite amount of data. When a learning algorithm trains a model, it either trusts the data too much and overfits, or trusts the data too little and underfits.\\
+
+The idea of \textit{bagging} is to fight this problem by having many version of the model trained on different subsets of the dataset (each overfitting), hoping that the biases cancel each other out.\\
+
+The idea of bagging rests on the bootstrap procedure:
+
+\begin{framedef}
+The \textit{bootstrap procedure} is defined as follows. Given a dataset $D = \{(x_i,y_i)\}$, we generate new samples $X_j^*$ of $(x_i,y_i)$ by drawing from $D$ uniformly at random \textit{with replacement} (therefore it is possible that we get copies of a single $(x_i,y_i)$ in the sample).\\
+
+The \textit{bagging method} (also called \textit{bootstrap aggregating}) proceeds as follows:
+\begin{enumerate}[label = (\arabic*)]
+\item Given a dataset $D$, generate $N$ bootstrapped samples $X_1^*, ..., X_n^*$.
+\item Train models $h_1,..., h_n$ to each of the bootstrapped samples.
+\item Average the predictions to obtain an `average model':
+\begin{equation*}
+h(x) = \frac{1}{N} \sum_{j=1}^{N} h_j(x).
+\end{equation*}
+\end{enumerate}
+\end{framedef}
+
+The \textit{random forest algorithm} is a variant of bagging for decision trees. We reduce error by additionally \textit{averaging over instances and features}. 
+
+\begin{framedef}
+Let $D = \{(\vec{x}_i, y_i)\}$ be a dataset, with $\vec{x}_i \in \mathcal{X} = \mathbb{R}^d$ and $y_i \in \mathcal{Y}$. The \textit{random forest algorithm} is as follows:
+\begin{enumerate}[label = (\arabic*)]
+\item For $j=1,...,N$:
+\begin{enumerate}[label = (\roman*)]
+\item Pick $p$ random features out of $d$.
+\item Bootstrap a sample $D_j = \{(\vec{x}_i, y_i)\}$ for $\vec{x}_i \in \mathbb{R}^p$ and $y_i \in \mathcal{Y}$.
+\item Train a decision tree $h_j(\vec{x})$ using the bootstrapped dataset $D_j$. 
+\end{enumerate}
+\item Proceed as normal - take the average of the resulting models as in the standard bagging procedure.
+\end{enumerate}
+\end{framedef}
+
+
+
+
+\newpage
+Below is a comparison of three input datasets, three decision trees trained to the datasets, and three random forests trained to the datasets (i.e. applying the random forest algorithm using decision trees). The use of a random forest nicely reduces overfitting. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.5]{randomforest.png}
+\end{figure}
+
+\minirule
+
+We will now prove something about ensemble methods' bias and variance. Recall the bias-variance decomposition of mean square error we saw earlier in the course:
+\begin{equation*}
+\text{MSE}(\vec{x}) = \underbrace{\mathbb{E}_y[(y - \mathbb{E}[y|x])^2]}_{\text{noise}} + \underbrace{\left( \mathbb{E}_D[f_D(x)] - \mathbb{E}[y|x] \right)^2}_{\text{bias}} + \underbrace{\mathbb{E}_D\left[ (f_D(x) - \mathbb{E}_D[f_D(x)])^2 \right]}_{\text{variance}}
+\end{equation*}
+The error of a model is its noise (a constant that cannot be removed), the \textit{bias} and the \textit{variance}.\\
+
+We first claim that bias is not made any worse by bagging:
+\begin{frameprop}
+The bias of a model is equal to the bias of the model under bagging.\\
+
+\textit{Proof:} The bias of the ensemble is given by:
+\begin{align*}
+\mathbb{E}_y \left[ \left( \mathbb{E}_D\left[ \frac{1}{N} \sum_{n=1}^{N} \tilde{f}_D(x) \right] - \mathbb{E}[y|x] \right)^2 \right] &= \mathbb{E}_y \left[ \left( \frac{1}{N} \sum_{n=1}^{N} \mathbb{E}_D[\tilde{f}_D(x)] - \mathbb{E}[y|x] \right)^2 \right]\\[1.5ex]
+&= \mathbb{E}_y \left[ \left( \mathbb{E}_D[\tilde{f}_D(x)] - \mathbb{E}[y|x] \right)^2 \right],
+\end{align*}
+which is just the bias of the individual model. This holds since $\mathbb{E}[A+B] = \mathbb{E}[A] + \mathbb{E}[B]$ holds for any two random variables $A, B$ regardless of their dependence. \qedsymbol
+\end{frameprop}
+
+
+
+\newpage
+Variance is more complicated:
+
+\begin{frameprop}
+The variance of a bagged model is $N$ times lower for uncorrelated hypotheses, and is unchanged for fully-correlated hypotheses.\\
+
+\textit{Proof:} Define:
+\begin{equation*}
+F = \frac{1}{N} \sum_{n=1}^{N} \tilde{f}_n(x).
+\end{equation*}
+The variance of the bagged model is then given by:
+\begin{equation*}
+\textrm{Var}(F) = \frac{1}{N^2} \sum_{i,j} \textrm{Cov}(\tilde{f}_i, \tilde{f}_j) = \frac{1}{N^2} \sum_{i} \left[ \textrm{Var}(\tilde{f}_i) + \sum_{j \neq i} \textrm{Cov}(\tilde{f}_i, \tilde{f}_j) \right].
+\end{equation*}
+All the models $\tilde{f}_i$ use the same algorithm, so we can assume that they all have the same variance, hence:
+\begin{equation*}
+\textrm{Var}(F) = \frac{1}{N} \textrm{Var}(\tilde{f}) + \frac{1}{N^2} \sum_{i} \sum_{j \neq i} \textrm{Cov}(\tilde{f}_i, \tilde{f}_j).
+\end{equation*}
+The result follows. \qedsymbol
+\end{frameprop}
+
+Therefore, the practical gain of ensembling depends highly on whether the hypotheses are highly correlated or not. However, we won't make the variance any worse (we just might fail to make it better).
+
+
+\minirule
+
+\subsection{Stacked generalisation}
+The point of \textit{stacking} is to correct errors made by a previous algorithm: the idea is to run a new algorithm $B$ which is designed to correct the mistakes of algorithm $A$.\\
+
+A na\"{i}ve precursor to the idea of stacking is  \textit{blending}:
+\begin{framedef}
+The \textit{blending} procedure is defined as follows:
+\begin{enumerate}[label = (\arabic*)]
+\item Partition the training dataset $D$ into $D_1$, $D_2$.
+\item Train models $\tilde{f}_i(x)$ on $D_1$.
+\item Compute predictions $Z_i = \tilde{f}_i(D_2)$.
+\item Train a \textit{meta-model} $\phi(Z_1,...,Z_n,D_2)$ on the predictions obtained on the previous step and features.
+\end{enumerate}
+\end{framedef}
+
+Unfortunately, there is a glaring issue with this approach. Both levels are trained on half of the dataset - this is unacceptable waste in the quest for, say, $1$\% performance gain!
+
+
+
+\newpage
+Fortunately, there is a better approach, based on $k$-folding - this is \textit{stacking}:
+\begin{framedef}
+The \textit{stacking} procedure is defined as follows:
+\begin{enumerate}[label = (\arabic*)]
+\item Partition the training set into $k$ folds.
+\item As in cross-validation, train $k$ `level $1$' models leaving a fold out in each case, and make predictions for each of these `level $1$' models on the left-out fold.
+\item Fit the meta-model on all the level $1$ predictions, optionally concatenated with features.
+\end{enumerate}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.6]{stacking2.png}
+\end{figure}
+\end{framedef}
+
+
+
+
+\newpage
+\section{Gradient boosting}
+
+\subsection{Boosting}
+The idea of \textit{boosting} is to build a sequence of models, where each model corrects the error of the previous ones (similar to stacking as discussed in the previous chapter).\\
+
+More mathematically, consider a regression problem:
+\begin{equation*}
+\text{minimise }\qquad \frac{1}{2} \sum_{i=1}^{l} (h(x_i) - y_i)^2 \qquad \text{ over $h$.}
+\end{equation*}
+We search for solutions in the form of a \textit{weak learner composition}:
+\begin{equation*}
+a_N(x) = \sum_{n=1}^{N} h_n(x),
+\end{equation*}
+with weak learners $h_n \in \mathbb{H}$ in some function space $\mathbb{H}$. The \textit{boosting approach} add weak learners greedily:
+\begin{enumerate}[label = (\arabic*)]
+\item Start with the `trivial' weak learner given by:
+\begin{equation*}
+h_0(x) = \frac{1}{l} \sum_{i=1}^{l} y_i.
+\end{equation*}
+\item At each step $N$, compute the residuals:
+\begin{equation*}
+s_i^{(N)} = y_i - \sum_{n=1}^{N-1} h_n(x_i) = y_i - a_{N-1}(x_i),
+\end{equation*}
+for $i = 1,...,l$.
+\item Train the next weak algorithm using:
+\begin{equation*}
+a_N(x) := \underset{h \in \mathbb{H}}{\textrm{argmin}}\ \frac{1}{2} \sum_{i=1}^{l} (h(x_i) - s_i^{(N)})^2.
+\end{equation*}
+\end{enumerate}
+
+
+
+
+\newpage
+\begin{frameex}
+Here is an example of boosting a decision tree:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{treeboosting.png}
+\end{figure}
+Above, we have fitted a decision tree. Next, we compute the difference between the predictions of this tree and the data, then we fit a new tree to the differences:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{treeboosting2.png}
+\end{figure}
+We repeat this procedure until we arrive at a final boosted tree:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{treeboosting3.png}
+\end{figure}
+\end{frameex}
+
+
+
+
+\newpage
+\subsection{Gradient boosting}
+In the above form of boosting, we used mean squared error loss. In order to handle arbitrary losses, we need to define the residuals using \textit{gradient descent}.\\
+
+The scheme of \textit{gradient boosting} is the following. With $a_{N-1}(x)$ already built, we wish to compute:
+\begin{equation*}
+\text{minimise}\qquad \sum_{i=1}^{l} \mathcal{L}(y_i, a_{N-1}(x_i) + \gamma h_(x_i))\qquad \text{over $\gamma, h$}.
+\end{equation*}
+We view the loss function $\mathcal{L}(y,z)$ as a function of $z = a_N(x_i)$ and execute gradient descent on $z$. We search for such $s_1,...,s_l$ that minimise:
+\begin{equation*}
+\sum_{i=1}^{l} \mathcal{L}(y_i, a_{N-1}(x) + s_i).
+\end{equation*}
+We choose:
+\begin{equation*}
+s_i = - \frac{\partial \mathcal{L}(y,z)}{\partial z} \bigg|_{z = a_{N-1}(x_i)}
+\end{equation*}
+and approximate the $s_i$'s by $h_N(x_i)$.
+
+
+\minirule
+
+All in all then, we have the following. Our inputs include a \textit{training set} $D = \{(x_i, y_i)\}_{i=1}^{l}$, a number of boosting iterations $N$, a loss function $\mathcal{L}(y,z)$ with gradient $\partial \mathcal{L}/\partial z$, a family $\mathbb{H} = \{h(x)\}$ of weak learners and their associated learning procedures, and additional hyperparameters for the weak learners (tree depth, etc). Gradient boosting then proceeds as follows:
+\begin{enumerate}[label = (\arabic*)]
+\item Initialise the gradient boosting machine using some simple rule (e.g. zero, most popular class, etc).
+\item Execute the boosting iteration $t=1,...,N$:
+\begin{enumerate}[label = (\roman*)]
+\item Compute the \textit{pseudo-residuals}:
+\begin{equation*}
+s_i = -\frac{\partial \mathcal{L}(y_i,z)}{\partial z}\bigg|_{z = a_{N-1}(x_i)},
+\end{equation*}
+for $i=1,...,l$.
+\item Train $h_N(x_i)$ by regressing onto $s_1,...,s_l$:
+\begin{equation*}
+h_N(x) = \underset{h \in \mathbb{H}}{\textrm{argmin}} \sum_{i=1}^{l} (h(x_i) - s_i)^2.
+\end{equation*}
+\item Find the optimal $\gamma_N$ using plain gradient descent:
+\begin{equation*}
+\gamma_N = \underset{\gamma \in \mathbb{R}}{\textrm{argmin}}\sum_{i=1}^{l} \mathcal{L}(y_i, a_{N-1}(x) + \gamma h_N(x_i)).
+\end{equation*}
+\item Update the gradient boosting machine by $a_{N}(x_i) = a_{N-1}(x) + \gamma_N h_N(x)$.
+\end{enumerate}
+\item Compose the final gradient boosting machine learner:
+\begin{equation*}
+a_N(x) = \sum_{t=0}^{N} \gamma_i h_i(x).
+\end{equation*}
+\end{enumerate}
+
+
+\newpage
+\begin{frameex}
+Let's consider an example of gradient boosting for a regression problem. Let $X^{300} = \{(x_i,y_i)\}_{i=1}^{300}$ be a training set with $x_i \in [-5,5]$, $y_i = \cos(x_i) + \epsilon_i$ and $\epsilon_i \sim N(0,1/5)$ normally distributed.\\
+
+Pick $N=3$ boosting iterations, quadratic loss $\mathcal{L}(y,z) = (y-z)^2$. The gradient of the quadratic loss is $\partial L(y,z)/\partial z = y - z$, i.e. the residuals. Choose our weak learners as decision trees $h_i(x)$, and set $2$ as the maximum depth for decision trees.\\
+
+On the left are the values of the model, and on the right are the values of the model at each iteration:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{gradientboost1.png}
+\includegraphics[scale=0.4]{gradientboost2.png}
+\end{figure}
+\end{frameex}
+
+
+
+\newpage
+\subsection{Regularisation of gradient boosting machines via shrinkage}
+Like all machine learning models, gradient boosting machines can overfit. We need to regularise them to make them practical.\\
+
+For \textit{too simple weak learners} the negative gradient is approximated badly - thus we have a random walk in the space of samples. For \textit{too complex weak learners} a few boosting steps may be enough for overfitting.\\
+
+One solution is to use \textit{shrinkage}: we make the steps shorter using a \textit{learning rate} $\eta \in (0,1]$:
+\begin{equation*}
+a_N(x) = a_{N-1}(x) + \eta \gamma_N h_N(x).
+\end{equation*}
+Effectively, we distrust the gradient direction estimated via the weak learners.
+
+\begin{frameex}
+Consider the following regression model, fitted with too many trees (light red) and too few trees (dark red).
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{overfittree.png}
+\end{figure}
+As always, we want to estimate the sweet spot where the test error is the lowest:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{testtraintree.png}
+\end{figure}
+If we perform some regularisation by simplifying the decision trees as above, then we find that the train error increases a little bit (the model is less able to model the training dataset), and the test error slightly decreases.
+
+
+
+\newpage
+Consider instead reducing the learning rate:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{testtrainlearningrate.png}
+\end{figure}
+We get much better quality predictions on the test data. However this does require more trees.\\
+
+In principle, you can do this more or less indefinitely - divide the learning rate by $10$, multiply the number of trees by $10$, etc, but eventually we get diminishing returns.\\
+
+Now consider combining two of our previous ideas. In the figure below, we compare with subsampling. We combine the idea we had with random forests, where the next tree was not fitted on the whole dataset but on a subsample instead, together with gradient boosting.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{testtrainsamplelearningrate.png}
+\end{figure}
+Changing the subsampling without the learning rate makes thing even worse - quality decreases. However, with a change in learning rate, we can achieve super performance.
+\end{frameex}
+
+
+
+
+\newpage
+\subsection{XGBoost algorithm}
+XGBoost stands for \textit{extreme gradient boosting}. This adds some features to the standard algorithm:
+\begin{itemize}
+\item The gradient descent direction using \textit{second order derivatives} rather than just single derivatives; we minimise over $h$:
+\begin{equation*}
+\sum_{i=1}^{l} \left( -s_i h(x_i) + \frac{1}{2} t_i h^2(x_i) \right) \qquad t_i = \frac{\partial^2}{\partial z^2} \mathcal{L}(y_I, z) \bigg|_{a_{N-1}(x_i)}.
+\end{equation*}
+\item We penalise \textit{large leaf counts} $J$ and \textit{large leaf coefficient norms} $||\vec{b}||_2^2 = \displaystyle \sum_{j=1}^{J} b_j^2$; we minimise over $h$:
+\begin{equation*}
+\sum_{i=1}^{l} \left( -s_i h(x_i) + \frac{1}{2} t_i h^2(x_i) \right) + \gamma J + \frac{\lambda}{2} \sum_{j=1}^{J} b_j^2,
+\end{equation*}
+where $b(x) = \displaystyle \sum_{j=1}^{J} b_j[x \in R_j]$. 
+\item We choose splits $[x_j < t]$ at the node $R$ to maximise:
+\begin{equation*}
+Q = H(R) - H(R_l) - H(R_r),
+\end{equation*}
+where the impurity criterion is given by:
+\begin{equation*}
+H(R) = -\frac{1}{2} \left. \left( \sum_{(t_i,s_i) \in R} s_j \right)^2 \middle/ \left( \sum_{(t_i,s_i) \in R} t_j + \lambda \right) \right. + \gamma. 
+\end{equation*}
+\item We add the stopping criterion: declare the node a leaf if even the best split gives negative $Q$. 
+\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
 \part{Introduction to neural networks}
 \hrule
 \noindent \\
@@ -2100,9 +2443,223 @@ Each quality metric predicts the optimum number of clusters is $K=5$.
 
 
 
+\newpage
+\subsection{Limitations of the $K$-means algorithm}
 
 
 
+
+\newpage
+\subsection{Hierarchical clustering}
+
+
+
+
+\newpage
+\subsection{DBSCAN}
+
+
+
+
+
+
+
+
+
+\newpage
+\section{Introduction to neural networks}
+
+\subsection{From linear models to neural networks}
+Neural networks can be thought of as a natural extension of linear models. Recall how for linear models, we introduced \textit{new features} to make the model \textit{more powerful}. Finding good features (aka feature engineering) is a \textit{highly non-trivial task}. We therefore ask the question: \textit{can we automate feature engineering?}\\
+
+One idea is to add another model that takes in the raw features, and output some `good' features such that our problem can be solved with a linear model. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{automaticfeatureengineering.png}
+\end{figure}
+However, it's not quite clear how we can optimise this model, since we don't have a criterion for `good' features.\\
+
+One possible solution is to \textit{train everything simultaneously}. We can use (stochastic) gradient descent for this procedure if both models are \textit{differentiable}. In such a case, we can just treat the whole thing as a single model.\\
+
+However, we should note that stacking models in this manner typically makes the loss function non-convex, thus there are \textit{no} convergence guarantees if we choose to do this. We'll discuss this problem a bit later.
+
+
+\minirule
+
+
+The simplest additional model we could add is another linear model:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{stackinglinearmodels.png}
+\end{figure}
+Here, we have $\hat{y} = w^T \tilde{x} = w^T (Wx) = (w^T W)x = (w')^Tx$. In particular, the result is just another linear model with slightly different parameters. This isn't more expressive than a single linear model.
+
+
+
+\newpage
+To fix this, we \textit{remove} the linearity so the above manipulation is invalid. We can do this simply by adding some \textit{nonlinear scalar function} (applied elementwise) after the first linear model. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{nonlinearstacking.png}
+\end{figure}
+In this case, we have $\hat{y} = w^T \tilde{x} = w^T g(Wx)$, which is non-linear in $x$. Explicitly writing the indices, we have:
+\begin{equation*}
+\hat{y} = w^T \tilde{x} = w^T g(Wx) = \sum_{j} \left[w_j g\left( \sum_{i} W_{ji} x_i \right) \right].
+\end{equation*}
+This can be visualised as the following diagram:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{basicnetwork.png}
+\end{figure}
+Models of this form are called \textit{artificial neural networks}.\\
+
+Let's introduce some more terminology associated with these networks:
+\begin{framedef}
+In the diagram above, we label the following features:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{labelledbasicnetwork.png}
+\end{figure}
+The function $g$ is often called an \textit{activation function}.
+\end{framedef}
+
+
+
+\newpage
+\subsection{Activation functions}
+Let's begin by discussing the possible activation functions we could use to introduce non-linearity.
+\begin{framedef}
+Possible activation functions include:
+\begin{itemize}
+\item The \textit{rectified linear unit}, $\textrm{ReLU}(x) = \max(0,x)$.
+\item The \textit{exponential linear unit},
+\begin{equation*}
+\textrm{ELU}(x) = \begin{cases} x & x \geq 0, \\ e^x - 1 & x < 0. \end{cases}
+\end{equation*}
+\item The \textit{soft-plus} activation:
+\begin{equation*}
+\textrm{softplus}(x) = \log(1 + e^x).
+\end{equation*}
+\item The \textit{sigmoid} function:
+\begin{equation*}
+\textrm{sigmoid}(x) = \frac{1}{1 + e^{-x}}.
+\end{equation*}
+\item The \textit{hyperbolic tangent} function $\tanh(x)$.
+\end{itemize}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{activationfunctions.png}
+\end{figure}
+\end{framedef}
+
+The final two functions are slightly tricky to use due their `saturational' properties for very large positive and negative units. Typically the rectified linear unit is a good first choice, but other functions can be tried if desired.\\
+
+Sigmoid and hyperbolic tangent functions are typically reserved for the final layers, where we want our output to be in a specific range. 
+
+
+
+
+
+\newpage
+\subsection{Universal approximators and deeper nets}
+This simple modification to a linear model (stacking linear models with only a single non-linearity in between them) is very powerful. In fact, there is a theorem that tells us that a single hidden linear layer with a nonlinearity makes our model a \textit{universal approximator}:
+
+\begin{frameprop}
+Any function can be approximated \textit{arbitrarily closely} by an artificial neural network with a single hidden layer, given a sufficiently wide hidden layer (i.e. large enough dimension $d'$ for the output of the first linear model). 
+\end{frameprop}
+
+In practice however, in may be impossible to find this approximation. This might be due to a heavily non-convex loss function, an infeasibly large dimension $d'$, or overfitting.\\
+
+In practice, we can instead stack more hidden layers, reducing the number of neurons required to represent a given function. Such a layer is called a \textit{multilayer perceptron}:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{multilayerperceptron.png}
+\end{figure}
+
+
+\minirule
+
+\subsection{Backpropagation}
+Now let's discuss in more detail how to compute the derivatives to perform the gradient descent.\\
+
+A schematic view of the flow of information through our model is given below.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{backpropagation1.png}
+\end{figure}
+
+Our loss function could be, for example, mean squared error loss:
+\begin{equation*}
+L = \frac{1}{N} \sum_{i=1,...,N} \left( y_i - w^T g(Wx_i) \right)^2. 
+\end{equation*}
+
+
+
+\newpage
+If we denote our layers as functions $\textrm{Dense1}$, $\textrm{Activation1}$ and $\textrm{Dense2}$, the model can be written as:
+\begin{equation*}
+\hat{f}(x;w,W) = \textrm{Dense2}(\textrm{Activation1}(\textrm{Dense1}(x))).
+\end{equation*}
+The loss can be viewed as a function $L(w,W) \equiv L(y,\hat{f}(x,w,W))$. By the chain rule then, we have:
+\begin{equation*}
+\frac{\partial L}{\partial W} = \frac{\partial L(y,\hat{f})}{\partial \hat{f}} \cdot \frac{\partial \hat{f}}{\partial W} = \underbrace{\frac{\partial L(y,\hat{f})}{\partial \hat{f}}}_{\text{scalar}} \cdot \underbrace{\frac{\partial \textrm{Dense2}}{\partial \textrm{Activation1}}}_{d'\text{-vector}} \cdot \underbrace{\frac{\partial \textrm{Activation1}}{\partial \textrm{Dense1}}}_{\text{$d' \times d'$ diagonal matrix}} \cdot \underbrace{\frac{\partial \textrm{Dense1}}{\partial W}}_{\text{$d' \times d' \times d$-tensor}}.
+\end{equation*}
+Overall, the result is a $d' \times d$ matrix. The \textit{backpropagation algorithm} is essentially just applying the chain rule repeatedly. The actual algorithm states how to do this in an efficient way.\\
+
+\minirule
+
+\subsection{Optimisation techniques}
+Stacking linear models with a non-linearity in between makes the resulting problem highly non-convex. For example, a loss function landscape might look like:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{lossfunctionlandscape.png}
+\end{figure}
+There is no convergence guarantee for (stochastic) gradient descent when we don't have convexity! However, there's a number of modifications we can do to improve the situation.\\
+
+First, let's recap stochastic gradient descent. Recall that at each step $k$ in the procedure, we pick $l_k \in \{1,...,N\}$ at random, then update:
+\begin{equation*}
+\theta^{(k)} = \theta^{(k-1)} - \eta \nabla_{\theta} \mathcal{L}(y_{l_k}, \hat{f}_{\theta}(x_{l_k})) \bigg|_{\theta = \theta^{(k-1)}}.
+\end{equation*}
+A modification is called \textit{mini-batch stochastic gradient descent}. Here, we shuffle the training set, then iterate through it in chunks (batches) of fixed size. At each iteration, we evaluate the loss gradients on the given chunk $B$:
+\begin{equation*}
+g = \sum_{i\in B} \nabla_{\theta} \mathcal{L}(y_i, \hat{f}_{\theta}(x_i)).
+\end{equation*}
+We then update the parameters as usual: $\theta^{(k)} = \theta^{(k-1)} - \eta \cdot g$. \\
+
+Another modification is \textit{momentum stochastic gradient descent}. The basic idea is to introduce \textit{inertia} into the procedure (like a ball rolling down a hill). This method smooths out fast oscillations and helps get out of small local minima; it also allows for larger ranges of learning rates. The relevant equations are:
+\begin{equation*}
+m^{(k)} = \beta m^{(k-1)} + (1-\beta) \frac{\partial L}{\partial \theta} \bigg|_{\theta = \theta^{(k-1)}}, \qquad \theta^{(k)} = \theta^{(k-1)} - \eta m^{(k)}.
+\end{equation*}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{momentumsgd.png}
+\end{figure}
+
+Another modification to stochastic gradient descent is called RMSprop. The idea is to adjust the learning rate separately for different components of the parameter vector. As the gradients get smaller, we increase the learning rate (we scale by the inverse root mean square of the gradient):
+\begin{equation*}
+\mathbb{E}[g^2]_{(k)} = \beta \mathbb{E}[g^2]_{(k-1)} + (1-\beta) \left( \frac{\partial L}{\partial \theta} \right)^2 \bigg|_{\theta = \theta^{(k-1)}}.
+\end{equation*}
+We then update via:
+\begin{equation*}
+\theta^{(k)} = \theta^{(k-1)} - \frac{\eta}{\sqrt{\mathbb{E}[g^2]_{(k)} + \epsilon}} \frac{\partial L}{\partial \theta}\bigg|_{\theta = \theta^{(k-1)}}. 
+\end{equation*}
+Note that we must introduce a stabilisation constant $\epsilon$ to avoid division by zero in some cases.\\
+
+A final modification to stochastic gradient descent, called Adam, combines both these ideas (momentum and RMSprop). This is typically a good first choice for an optimising algorithm. A comparison is given below:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{sgdcomparison.png}
+\end{figure}
+
+
+
+
+
+
+
+
+\newpage
+\section{Introduction to PyTorch}
 
 
 
