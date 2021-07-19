@@ -2660,6 +2660,249 @@ A final modification to stochastic gradient descent, called Adam, combines both 
 
 \newpage
 \section{Introduction to PyTorch}
+In this section, we discuss architectural details of \textit{PyTorch}. 
+
+\subsection{Deep learning frameworks}
+There are many deep learning frameworks available today:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{deeplearningframeworks.png}
+\end{figure}
+The lower on the diagram, the lower the level of programming. They differ with how they deal with hardware, etc, but also with how they organise \textit{automatic differentiation} - this is the main mechanism that underlies computation of gradients needed during training of the network.\\
+
+The most popular is probably Google's \textit{TensorFlow}. It's mainly known for good production quality.\\
+
+\textit{PyTorch} is backed up by Facebook's AI research and is nicely accepted in the research community. It helps to write concise code, it is flexible and transparent. There is also \textit{PyTorch Lightning} which simplifies some of the lower-level aspects of PyTorch. We will focus on PyTorch and PyTorch Lightning only.\\
+
+Highlights of PyTorch include:
+\begin{itemize}
+\item Simple, transparent development and debugging.
+\item A rich ecosystem: plenty of pretrained models, NLP, Vision, interpretation, hyper-optimisation. 
+\item Production ready (export of the trained model into different formats).
+\item Distributed training, declarative data parallelism.
+\item Cloud deployment support.
+\item Choice of many industry leaders and researchers.
+\end{itemize}
+
+
+
+\newpage
+\subsection{Neural network representation}
+Let's take a look at a lower level description of the neural network design. We start with an `abstract representation': 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{abstractnn.png}
+\end{figure}
+This can be written in `linear algebra' form as:
+\begin{equation*}
+Y = \textrm{ReLU}\left(W_2 \cdot \textrm{ReLU}(W_1 X + b_1) + b_2 \right).
+\end{equation*}
+We can of course represent this diagramatically as a graph consisting of tensors and functions:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{diagramnn.png}
+\end{figure}
+
+These building blocks are implemented in the code. Tensors are created either for nested lists or from numpy arrays:
+\begin{python}
+torch.Tensor(L)				# Create tensor from (nested) list or numpy array L.
+torch.[ones|zeros](*size)		# Tensor with all ones or all zeros.
+x.clone()				# Clone an existing tensor.
+\end{python}
+
+You can explicitly specify which device on which you wish a tensor to be placed (either CPU, GPU or TPU), or later on you can move a tensor between devices:
+\begin{python}
+torch.ones([2,4], dtype=torch.float64, device=cuda0)
+
+# These methods move tensors between different devices.
+x.cuda()
+x.cpu()
+mytensor.to(device)
+\end{python}
+Operations can be performed only if arguments are on the same device.
+
+
+
+\newpage
+\subsection{Building blocks, graph}
+When we have all our tensors, we need a good way to compute gradients using backpropagation (i.e. the chain rule). Let's consider a toy example:
+\begin{equation*}
+b = w_1 * a, \qquad c = w_2 * a, \qquad d = w_3 * b + w_4 * c, \qquad L = 10 - d.
+\end{equation*}
+for some operation $*$. This is represented using the graph:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{toymodel.png}
+\end{figure}
+Mathematical operations are implemented in PyTorch as:
+\begin{python}
+A.mm(B)		# Matrix multiplication.
+A.mv(x)		# Matrix-vector multiplication (for some reason different to matrix multiplication).
+x.t()		# Matrix transpose.
+\end{python}
+To perform backpropagation, we need to compute:
+\begin{equation*}
+\frac{\partial L}{\partial w_1} = \frac{\partial L}{\partial d} * \frac{\partial d}{\partial b} * \frac{\partial b}{\partial w_1}. 
+\end{equation*}
+Graphically, we swap the directions of arrows:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{toybackpropagation.png}
+\end{figure}
+The gradient can be computed \textit{automatically} in PyTorch (this is the most important and behind-the-scenes thing).\\
+
+Each \texttt{Tensor} object has an attribute \texttt{grad\_fn}, which refers to the mathematical operation which created the tensor. If \texttt{Tensor} is a leaf node (initialised by the user), then the \texttt{grad\_fn} is \texttt{None}. Each tensor also has an argument \texttt{requires\_grad}:
+\begin{python}
+a = torch.randn((3,3), requires_grad = True)
+\end{python}
+If set to \texttt{True} (which is \textit{not} the default argument), we can compute intermediate gradients for this tensor.
+
+
+
+
+
+\newpage
+All mathematical steps a represented by classes inherited from \texttt{torch.autograd.Function}. Every \texttt{Function} entering the graph has two methods:
+\begin{itemize}
+\item The \texttt{forward} method, which does the obvious thing - computing the forward direction node output and saving it to an internal buffer.
+\item The \texttt{backward} method, which stores the incoming gradient from the downstream node, and multiplies by a local gradient, before sending it to the upstream node. 
+\end{itemize}
+Inside the backward method, the details are:
+\begin{python}
+def backward(incoming_gradients):
+	self.Tensor.grad = incoming_gradients
+	
+	for inp in self.inputs:
+		if inp.grad_fn is not None:
+			new_incoming_gradients = // incoming_gradient * local_grad(self.Tensor, inp)
+			
+			inp.grad_fn;backward(new_incoming_gradients)
+		else:
+			pass
+\end{python}
+
+Consider the following example:
+
+\begin{python}
+import torch
+
+a = torch.randn((3,3), requires_grad = True)
+
+w1 = torch.randn((3,3), requires_grad = True)
+w2 = torch.randn((3,3), requires_grad = True)
+w3 = torch.randn((3,3), requires_grad = True)
+w4 = torch.randn((3,3), requires_grad = True)
+
+b = w1 * a
+c = w2 * a
+
+d  = w3 * b + w4 * c
+
+# Replace L = 10 - d by
+L = (10 - d).sum()
+
+L.backward()
+\end{python}
+When we use the \texttt{backward} method at the end, all the gradients in the network involved in the computation of $L$ are updated, in the way described above. Optimisation via gradient descent then becomes very easy:
+\begin{python}
+learning_rate = 0.5
+w1 = w1 - learning_rate * w1.grad
+\end{python}
+Usually, this step happens within an optimiser inside the PyTorch platform.
+
+
+\newpage
+In general, PyTorch does a lot of work behind the scenes:
+\begin{itemize}
+\item Calling \texttt{forward} creates:
+\begin{itemize}
+\item A graph with the intermediate note output values.
+\item Buffers for the non-leaf nodes.
+\item Buffers for intermediate gradient values.
+\end{itemize}
+\item Calling \texttt{backward}:
+\begin{itemize}
+\item Computes gradients.
+\item Frees the buffers and destroys the graph
+\end{itemize}
+\end{itemize}
+When we next call \texttt{forward}, the leaf node buffers from the from the previous run are shared, and non-leaf nodes' buffers are recreated. \\
+
+Due to the flexibility of the network architecture, it is not obvious when an iteration of gradient descent stops, so \texttt{backward}'s gradients are accumulated each time a variable (\texttt{Tensor}) occurs in the graph. This is usually desired for \textit{recurrent neural networks}. If you do not need to accumulate these, you \textit{must clean previous gradient values} at the end of each iteration:
+\begin{itemize}
+\item Either use \texttt{x.data.zero\_()} for every model tensor \texttt{x}.
+\item Or, use optimiser's \texttt{zero\_grad()} method, which is much more preferable.
+\end{itemize}
+
+As discussed above, the \texttt{requires\_grad} attribute of the \texttt{Tensor} class is by default \texttt{False}. This comes in handy if you must freeze some layers and stop them from updating parameters while training. Thus, no gradient is propagated to them, or to those layers which depend upon these layers for gradient flow.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{requiresgrad.png}
+\end{figure}
+When set to \texttt{True}, \texttt{requires\_grad} is contagious - even if one operand of an operation has \texttt{requires\_grad} set to \texttt{True}, so will the result.\\
+
+This can be useful when we use a pre-trained model:
+\begin{python}
+model = torchvision.models.resnet18(pretrained=True)
+
+# Freeze some layers in the existing model
+for param in model.parameters():
+	param.requires_grad = False
+	
+# Replace the last fully-connected layer with our own
+# Parameters of newly constructed modules have requires_grad = True by default
+model.fc = nn.Linear(512,100)
+
+# Optimise only the classifier
+optimizer = optim.SGD(model.fc.parameters(), lr=1e-2, momentum=0.9)
+\end{python}
+
+
+
+\newpage
+\subsection{Inference}
+When we are computing gradients, we need to cache input values, and intermediate features as they may be required to compute the gradient later. The gradients of $b = w_1 * a$ with respect to its inputs $w_1$ and $a$ are $a$ and $w_1$ respectively.\\
+
+We need to store these values for gradient computation during the backward pass. This affects the memory footprint of the network. However, when we are performing inference, we don't compute gradients:
+\begin{python}
+with torch.no_grad:
+	# inference code goes here
+\end{python}
+
+\minirule
+
+\subsection{Neural network class}
+The main class that wraps everything in PyTorch is \texttt{torch.nn.Module}.
+\begin{python}
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+
+	# We write all the tensors that need to be trained in the constructor
+	def __init__(self):
+		super(Model, self).__init__()
+		self.conv1 = nn.Conv2d(1, 20, 5)
+		self.conv2 = nn.Conv2d(20, 20, 5)
+	
+	# We also define how all the building blocks need to be connected in the forward procedure
+	def forward(self, x):
+		x = F.relu(self.conv1(x))
+		return F.relu(self.conv2(x))
+\end{python}
+
+We must also write loss functions and optimisers (the optimisers are all already implemented in PyTorch - just pick one). 
+
+\minirule
+
+\subsection{PyTorch Lightning}
+PyTorch Lightning is the lightweight PyTorch wrapper for high-performance AI research. It has maximal flexibility, whilst removing the boilerplate code. It has self-contained models and modular code.\\
+
+We will take a closer look at this during the seminars.
+
+
+
+
 
 
 
