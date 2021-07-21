@@ -2907,4 +2907,953 @@ We will take a closer look at this during the seminars.
 
 
 
+\newpage
+\section{Network regularisation}
+
+
+\subsection{Weight initialisation}
+Consider a neural network. Is it possible to initialise all weights with the same value? If we do so, within each layer the gradients for each of the weights will be the same as well, hence the \textit{updates will be the same}, and thus the network degrades! All the weights will continue being the same.\\
+
+Thus initialisation with a constant is a bad idea. Perhaps we should use a random initialisation instead. For simplicity, we omit the activation functions for now. Then the output of a neural network composed of dense layers only is:
+\begin{equation*}
+\hat{y} = W_{\text{out}} \cdot ... \cdots W_{h2} \cdot W_{h1} x.
+\end{equation*}
+Note that the gradient with respect to any of the weight matrices $W_{hk}$ is proportional to the \textit{product} of all other matrices. For example, for $1 \times 1$ matrices, if all are of scale $S \in \mathbb{R}$, the gradient $g$ is proportional to $g \sim S^{m-1}$, where $m$ is the \textit{depth} of the network. For $S$ too large, the gradients will \textit{explode}; for $S$ too small, they will \textit{vanish}.\\
+
+More realistically, consider a network with hidden layers. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{weightinitialisation.png}
+\end{figure} 
+We have in this case:
+\begin{equation*}
+\frac{\partial \textrm{Loss}}{\partial W_i} = \frac{\partial \textrm{Loss}}{\partial \textrm{Output}_i} \cdot \frac{\partial \textrm{Dense}_i}{\partial W_i} = \frac{\partial \textrm{Loss}}{\partial \textrm{Output}_{i+1}} \cdot \frac{\partial \textrm{Layer}_{i+1}}{\partial \textrm{Output}_i} \cdot \textrm{Output}_{i-1}. 
+\end{equation*}
+Continuing this process, we accumulate the product of the gradients for the subsequent layers. Therefore, the idea is that for stable learning we would like to keep the scale of the gradients the same at each step:
+\begin{equation*}
+\textrm{Var}\left( \frac{\partial \textrm{Layer}_{i+1}}{\partial \textrm{Output}_i} \cdot \frac{\partial \textrm{Layer}_i}{\partial \textrm{Output}_{i-1}}\right) \approx \textrm{Var}\left( \frac{\partial \textrm{Layer}_{i+1}}{\partial \textrm{Output}_i}\right).
+\end{equation*}
+Similarly, we would like the output to remain at the same scale at each step of the forward pass:
+\begin{equation*}
+\textrm{Var}(\textrm{Layer}_{i+1}(\textrm{Layer}_i(\textrm{Output}_{i-1}))) \approx \textrm{Var}(\textrm{Layer}_i(\textrm{Output}_{i-1})).
+\end{equation*}
+This requirement ensures that the activation of each layer is not too small and not too high.\\
+
+These two requirements may in fact contradict each other. For example, for ReLU activation, they result in the initialisation requirements:
+\begin{equation*}
+\textrm{Var}(W_{ij}) = \frac{2}{\text{number of outgoing connections}}, \qquad \textrm{Var}(W_{ij}) = \frac{2}{\text{number of incoming connections}}.
+\end{equation*}
+Typically we can just choose one of them, or we can try to average them out:
+\begin{equation*}
+\textrm{Var}(W_{ij}) = \frac{4}{\text{number of outgoing connections } + \text{ number of incoming connections}}.
+\end{equation*}
+This type of initialisation is called \textit{He} initialisation.\\
+
+
+
+
+
+
+
+
+\newpage
+\subsection{Overfitting with neural networks}
+Since neural networks are highly complex models, they are prone to overfitting. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{networkoverfitting.png}
+\end{figure}
+Regularisation techniques like $L1$ and $L2$ regularisation are also available for neural networks. We could also use \textit{early stopping} (i.e. stop the training before the validation error grows).\\
+
+There are some alternative methods that are only available for neural networks. The first we will discuss is \textit{dropout}: at train time, set neuron activations to $0$ with a given probability $p$. At test time, multiply the activation by $p$ (i.e. set it to the \textit{expected value}). This makes the neurons learn to work with a \textit{randomly chosen sample} of other neurons. It drives individual neurons towards \textit{creating useful features} rather than relying on other neurons to correct its mistakes. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{dropout.png}
+\end{figure}
+Applying dropout to the above problem, we see a big difference:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{dropoutoverfitting.png}
+\end{figure}
+Note however, we still see some signs of overfitting - early stopping might be more useful in this case.
+
+
+
+
+\newpage
+\subsection{Normalisation layers}
+This technique was originally proposed to mitigate \textit{internal covariate shift} (the updates in one layer changing the input distributions of the subsequent layers drastically). The proposed solution was to compute the \textit{mean} and \textit{variance} of inputs on a single batch $B$: 
+\begin{equation*}
+\mu_B = \frac{1}{|B|} \sum_{i \in B} x_i, \qquad \sigma_B^2 = \frac{1}{|B|} \sum_{i\in B} (x_i - \mu_B)^2.
+\end{equation*}
+We then \textit{normalise} the input, and \textit{scale and shift} (with the trainable parameters $\gamma, \beta$):
+\begin{equation*}
+y_i = \gamma \cdot \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}} + \beta.
+\end{equation*}
+This technique turned out to be \textit{extremely powerful} in many cases. It resulted in faster and more stable convergence.\\
+
+However, it was also proved to \textit{not} reduce the internal covariate shift! It is not quite well understood why it works, but it works so people use it.\\
+
+Effectively, we \textit{remove} the `shift' and `scale' degrees of freedom from the previous layer. We transfer these degrees of freedom to the new batch normalisation layer. This separation seems to make the learning more stable.
+
+\minirule
+
+We now discuss some more practical considerations related to this method. First, we ask: which dimension should we normalise over? Typically, in a fully-connected layer we work with either:
+\begin{itemize}
+\item Batches of one-dimensional vectors (which overall are of the shape batch dimension $\times$ features dimension). In this case, we normalise separately for each component in the features dimension, i.e. we normalise over the batch dimensions.
+\item For tensors, the dimensions are:
+\begin{equation*}
+\text{batch dimension} \times \text{spatial dimension $1$} \times ... \times \text{channel dimensiona}.
+\end{equation*}
+We normalise separately for each component of the channel dimension, i.e. over batch dimension $\times$ spatial dimension $1$ ... etc.
+ \end{itemize}
+ 
+ \begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.4]{dimensionnormalisation.png}
+ \end{figure}
+ 
+ 
+
+
+
+
+\newpage
+ Calculating batch statistics at test time may be problematic, e.g. when there's a single object to predict. Instead, we can calculate the running mean and variance during training, and apply batch normalisation at test time. 
+ 
+ \begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.4]{batchnormalisation.png}
+ \end{figure}
+ 
+ In some cases, batch normalisation is a bit problematic. Batch normalisation imposes limits on the batch size - if this is too small, the variance of the sample statistics will be too high. In particular, it is problematic to use in recurrent networks.\\
+ 
+ There is an alternative in this case: \textit{layer normalisation}. The maths is the same, except statistics are calculated over channels rather than batch elements. The effect is quite different though - layer normalisation `entangles' different neurons within a layer.
+ \begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.4]{layernormalisation.png}
+ \end{figure}
+ 
+ 
+ 
+ 
+ 
+ 
+ \newpage
+ \section{Convolutional neural networks}
+ 
+In this section, we overview computer vision tasks. Often these are best tackled using \textit{convolutional neural networks}.
+
+
+\subsection{Image recognition}
+A grayscale image is a matrix of pixels of dimensions $H \times W$ (heigh times width). Pixel is an abbreviation of `picture elements'. Each pixel sores a number in the range $[0,255]$ corresponding to its brightness.\\
+
+On the other hand, a colour image is a three-dimensional array of dimensions $H \times W \times 3$ or $3 \times H \times W$. The three channels correspond to red, green and blue.\\
+
+In order to recognise an image, we must send this multi-dimensional object into a neural network: 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{imagerecognition.png}
+\end{figure}
+
+One challenge is that images are very big. Another challenge is that images are not stuck in one particular location in the matrix, as in the figure below:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{imagelocation1.png}
+\includegraphics[scale=0.4]{imagelocation2.png}
+\end{figure}
+In the worst case, your network will have to learn about each of these cases separately - i.e. we might have to have one neuron per position!
+
+
+
+
+\newpage
+The main idea to overcome these challenges is to encode the output `kid' as a weight tensor that we can shift across the image:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{portabledetector.png}
+\end{figure}
+
+We move this weight tensor around the image to form a matrix of detections: `no kid', `no kid', `kid', `no kid' etc. The output is both a position of a feature and an identification of the image.\\
+
+The mathematical procedure that allows us to achieve this is \textit{convolution}. Given a vector of weights $(1,0,-1)$ for example and an image, we systematically apply the weights to the image using a dot product. In the below figure, this process is described in the one-dimensional case:
+
+\begin{figure}[H]
+\centering 
+\includegraphics[scale=0.3]{convolution.png}
+\end{figure}
+
+In the two-dimensional case, things are the same:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{2dconvolution.png}
+\end{figure}
+We apply the relevant \textit{filter} to all patches of the image. The result is to highlight regions of the image where things are similar to the filter. Therefore: our intuition should be `how kid-like is this filter'?
+
+
+
+\newpage
+\begin{frameex}
+A well-known convolutional kernel used for \textit{edge detection} is:
+\begin{equation*}
+\begin{pmatrix} -1 & -1 & -1 \\ -1 & 8 & -1 \\ -1 & -1 & -1 \end{pmatrix}.
+\end{equation*}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{edgedetection.png}
+\end{figure}
+\end{frameex}
+
+\minirule
+
+We can add a few tricks to the convolution to make it more flexible and useful in a greater variety of cases:
+\begin{itemize}
+\item \textbf{Padding.} We pad the edges of the image with extra, `fake' pixels (usually of value $0$, hence the term `zero padding'). This way when we slide the filter around, we can allow the original edge pixels to be at its centre (while extending into the fake pixels beyond the edge), producing an \textit{output the same size as the input}.
+\item \textbf{Striding and dilation.} The idea of \textit{striding} is to skip some of the slide locations on the image; the \textit{stride} is the number of pixels that we skip.\\
+
+\textit{Dilated convolution} is a basic convolution only applied to the input volume with defined gaps. This is useful when we are working with high resolution images, but fine-grained details are still important. 
+\end{itemize}
+
+
+
+\minirule
+
+
+\subsection{Convolutional layer}
+A convolutional layer for a neural network learns the weights of a filter by \textit{gradient descent}. We may specify as many as we want, one per \textit{output channel}.\\
+
+The output value of the layer with input size $(N,C_{\text{in}}, H, W)$ and output size $(N,C_{\text{out}}, H_{\text{out}}, W_{\text{out}})$ is given by:
+\begin{equation*}
+\textrm{out}(N_i, C_{\text{out}_j}) = \textrm{bias}(C_{\text{out}_j}) + \sum_{k=0}^{C_{\text{in}} - 1} \textrm{weight}(C_{\text{out}_j}, k) * \textrm{input}(N_i, k).
+\end{equation*}
+Here $N$ is the batch size, and $C$ is the number of channels. The total number of learnable parameters is $C_{\text{out}} \cdot (C_{\text{in}} \cdot \textrm{size}(\textrm{kernel}) + 1)$.\\
+
+A very important aspect of the convolutional layer is how much information it is capable it is seeing, which corresponds to a single feature at the end. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{multipleconvolution.png}
+\end{figure}
+
+Adding multiple convolutions increases the `field of view'. Stacking convolutions extends the \textit{receptive field}, and allows us to send the information to a higher level classification algorithm.\\
+
+How many $3 \times 3$ convolutions should we use to recognise a $100 \times 100$ pixel object? Around $50$ - this is too much, we need to increase the receptive field faster!
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{multipleconvolutions2.png}
+\end{figure}
+
+
+\minirule
+
+How do we pick the size of the kernel/filter in general? First, we should have an odd number number of dimensions for the kernel (i.e. there should be a centre of the kernel).\\
+
+If the input image is larger than $128 \times 128$ pixels, say, use $5 \times 5$ or $7 \times 7$ filters, and then quickly reduce the spatial dimensions - use $3 \times 3$ afterwards. If our images are smaller, then we should start with $3 \times 3$ to start with.
+
+\minirule
+
+\subsection{Pooling}
+One technique used to extend the receptive field is \textit{pooling}. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{pooling.png}
+\end{figure}
+Here, we select patches of the same colour that are the size of the kernel ($2 \times 2$ in this case) and we average over this part of the image. This removes redundant information and compresses it to highly responsive parts that have shown previously that location of this patch corresponds to the presence of an object.\\
+
+In this way, we reduce the layer size by a factor of the size of the kernel. This makes the NN less sensitive to small image shifts. This procedure also has no parameters to train!\\
+
+Popular types of pooling include: max pooling and mean pooling. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{maxmeanpooling.png}
+\end{figure}
+
+
+\minirule
+
+Let's check we understand some sizes in each of the following cases:
+\begin{frameex}
+How large is the receptive field for a module consisting of a convolution $\textrm{Conv1d}(3 \times 1, \text{stride}=1)$, and pooling $\textrm{MaxPool1d}(2 \times 1, \text{stride}=2)$?\\
+
+We draw the module:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{receptivefield.png}
+\end{figure}
+We see that the size of the receptive field is $4$.
+\end{frameex}
+
+\begin{frameex}
+How many parameters should a network consisting of $\textrm{Input}(100 \times 100 \times 3)$, $\textrm{Conv2d}(3 \times 3, 2 \text{ out channels}, \text{bias}=\text{True})$, $\textrm{MaxPool2d}(3 \times 3, \text{stride}=3, \text{dilation}=1)$?\\
+
+It is important to remember that the number of training parameters for convolution layers is:
+\begin{align*}
+\text{number of input channels ($3$) } &\times \text{ size of kernel ($3 \times 3$) } \times \text{ number of output channels ($2$) }\\[1.5ex]
+&+ \text{ number of output channels to account for bias ($2$) } = 56.
+\end{align*}
+\end{frameex}
+
+
+
+
+\newpage
+\subsection{Convolutional features stacking}
+The intuition for stacking many convolutional layers is to identify simpler features at each layer (e.g. straight lines on the first, combinations of straight lines on the second, etc). Eventually, we should arrive at a set of discrete choices (e.g. faces of people).
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{convfeaturestacking.png}
+\end{figure}
+
+There are many ways to stack these layers together. The state of the art is \textit{Google Vision}.\\
+
+However, there are many problems that can happen with large networks:
+\begin{itemize}
+\item Memory can run out.
+\item Gradients can vanish or explode.
+\item Activations can vanish or explode.
+\end{itemize}
+Possible solutions include using \textit{pre-trained networks}, or using different normalisation techniques. 
+
+
+
+
+
+
+
+\newpage
+\section{Transformers}
+
+\subsection{Introduction to sequence to sequence models}
+
+\textit{Machine translation} is a useful example of a sequence to sequence problem. The aim is to train a computer to translate a sentence from one language into another.\\
+
+A \textit{sequence to sequence model} for machine translation consists of two parts: one part relates to \textit{natural language understanding} - reading the source sentence - and the other part relates to \textit{natural language generation} - creating the output.\\
+
+The basic architecture is as follows. The \textit{encoder} inputs a sentence in the source language, and the \textit{decoder} outputs a sentence in the target language. The \textit{latent representation} is a vector representation of the input sentence, created by the encoder and used by the decoder (it serves as a bridge between the encoder and decoder).
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{machinetranslation.png}
+\end{figure}
+
+The encoder and decoder are trained jointly with the same loss functions, to create an overall model.\\
+
+We write the source and target sentences as tuples:
+\begin{itemize}
+\item We begin with a \textit{source sentence} $\vec{x}_{\text{source}} = (x_1,...,x_n)$, $x_i \in V_{\text{source}}$, where $V_{\text{source}}$ is the finite \textit{vocabulary} of the source language.
+\item We aim to recover a \textit{target sentence} $\vec{y}_{\text{target}} = (y_1, ..., y_m)$, $y_i \in V_{\text{target}}$. 
+\end{itemize}
+To create a useful machine translation system, both $\vec{x}_{\text{source}}$ and $\vec{y}_{\text{target}}$ should have similar \textit{semantic meaning}.\\
+
+A \textit{parallel corpus} consists of a collection of sentences written in different languages, all with the same meaning. We can use such parallel sentences to train a machine translation system. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{parallelcorpus.png}
+\end{figure}
+
+Our goal is to maximise $p(\vec{y} | \vec{x})$, the probability of the target sentence given the source sentence. Our objective function is the log likelihood:
+\begin{equation*}
+\mathcal{L}_{\theta} = \sum_{x,y \in C} \log(p(\vec{y} | \vec{x}; \theta)),
+\end{equation*}
+where $C$ is the dataset (namely the parallel corpus). 
+
+
+
+\minirule
+
+\subsection{Transformers}
+Transformers provide a faster and more efficient model for machine translation than previous ones. The core ideas include: \textit{multi-head attention mechanism} and \textit{two stacks of layers}. We will discuss the multi-head attention mechanism in detail.\\
+
+The encoder and decoder and both stacks of blocks, organised sequentially with their own inputs and outputs. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{stackencoder.png}
+\end{figure}
+
+The first layer of the encoder inputs the source sentence. The last layer of the decoder outputs the sentence in the target language. All other blocks output something intermediate.\\
+
+The encoder block consists of two sublayers:
+\begin{itemize}
+\item The self-attention layer helps to discover relations between words within sentences.
+\item The feed forward neural network layer aggregates outputs of the self-attention layer.
+\end{itemize}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.2]{encoderblock.png}
+\end{figure}
+
+The decoder block has the same two layers, but between them there is an encoder-decoder attention layer. An encoder-decoder attention layer helps the decoder to focus on different input words:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.2]{decoderblock.png}
+\end{figure}
+
+In total the encoder consists of $N$ identical blocks. Each block inputs the outputs of the previous block except the first one. The first block inputs \textit{words embeddings}.
+
+
+\minirule
+
+A word embedding is a vector; each word is represented by a single vector of size $512$. The vectors are \textit{dense} which means that there are not many zeroes in them.\\
+
+The more similar words are, the closer their embeddings are, measured by the cosine similarity $\cos(x_i,x_j)$. The embeddings are trainable, i.e. get updated when the whole model is trained.\\
+
+The embeddings are actually the sum of word embeddings and positional encodings, $x_i = e_i + (pe)_i$. 
+
+
+
+
+\minirule
+
+\subsection{Inside the encoder block}
+\textbf{Step 1: Self-attention.} Each word embedding is transformed into a query, a key and a value vector:
+\begin{itemize}
+\item Queries: $q_i = W^Q x_i$.
+\item Keys: $k_i = W^K x_i$.
+\item Values: $v_i = W^V x_i$.
+\end{itemize}
+The weight matrices $W^Q, W^K, W^V$ are trainable (i.e. updated during the training).\\
+
+In matrix notation, the word embeddings $X$ are multiplied by weight matrices:
+\begin{itemize}
+\item Queries: $Q = XW^Q$.
+\item Keys: $K = XW^K$.
+\item Values: $V = XW^V$. 
+\end{itemize}
+
+
+
+
+
+
+
+\newpage
+\part{Bayesian deep learning}
+\hrule
+\noindent \\
+\section{Introduction to Bayesian methods}
+
+
+\subsection{Frequentist vs Bayesian frameworks}
+Begin by recalling the definitions of conditional probabilities:
+\begin{framedef}
+Let $x,y$ be random variables. The \textit{conditional probability of} $x$ \textit{given} $y$ is:
+\begin{equation*}
+p(x|y) = \frac{p(x,y)}{p(y)},
+\end{equation*}
+where $p(x,y)$ is the probability of $x$ \textit{and} $y$.
+\end{framedef}
+This satisfies some nice properties:
+\begin{frameprop}
+We have the following:
+\begin{itemize}
+\item The \textit{product rule}: any joint distribution can be expressed as a product of one-dimensional conditional distributions:
+\begin{equation*}
+p(x,y,z) = p(x|y,z) p(y|z) p(z)
+\end{equation*}
+\item The \textit{sum rule}: any marginal distribution can be obtained from the joint distribution by integrating out unnecessary variables:
+\begin{equation*}
+p(y) = \int p(x,y)\ dx.
+\end{equation*}
+\end{itemize}
+\textit{Proof:} Both follow from the definitions of conditional probability (and the fact that the distribution $p(x|y)$ integrates to $1$ over $x$).
+\end{frameprop}
+
+\begin{frameex}
+Suppose we have a joint distribution over three groups of variables $p(x,y,z)$. We observe $x$ and are interested in predicting $y$. The values of $z$ are unknown and irrelevant to us. How do we estimate $p(y|x)$ from $p(x,y,z)$?\\
+
+We use the product and sum rules:
+\begin{equation*}
+p(y|x) = \frac{p(x,y)}{p(x)} = \frac{\displaystyle \int p(x,y,z)\ dz}{\displaystyle \int p(x,y,z)\ dz dy}.
+\end{equation*}
+In general, the product and sum rules allow us to obtain arbitrary conditional distributions from the joint one. However, to actually \textit{compute} the distribution in practice, the integrals may not be tractable - in one dimension the integral can be taken numerically, but in multiple dimensions it can be difficult to take the integral numerically.
+\end{frameex}
+
+
+
+
+\newpage
+From the above simple rules, we can obtain \textit{Bayes' theorem}:
+\begin{framethm}
+Bayes' theorem states:
+\begin{equation*}
+p(y|x) = \frac{p(x|y) p(y)}{\displaystyle \int p(x|y) p(y)\ dy}.
+\end{equation*}
+\noindent \textit{Proof:} By application of the product and sum rules:
+\begin{equation*}
+p(y|x) = \frac{p(x,y)}{p(x)} = \frac{p(x|y)p(y)}{p(x)} = \frac{p(x|y) p(y)}{\displaystyle \int p(x|y) p(y)\ dy}. \qquad \qedsymbol
+\end{equation*}
+\end{framethm}
+
+Bayes' theorem defines the rule for uncertainty conversion when new information arrives; the appropriate interpretation is:
+\begin{equation*}
+\text{Posterior} = \frac{\text{Likelihood} \times \text{Prior}}{\text{Evidence}}.
+\end{equation*}
+
+This framework is different from the framework we normally use in machine learning, namely \textit{frequentism}. We can see the difference when we discuss \textit{statistical inference}. Consider independent identically distributed data $X = (x_1,...,x_n)$ generated from some distribution $p(x|\theta)$. Suppose we must estimate $\theta$ (the `parameters' of our model). There are two approaches:
+\begin{itemize}
+\item The \textit{frequentist framework} is the standard method in machine learning. We use maximum likelihood estimation (MLE):
+\begin{equation*}
+\theta_{\text{ML}} = \textrm{argmax}\ p(X|\theta) = \textrm{argmax}\ \prod_{i=1}^{n} p(x_i|\theta) = \textrm{argmax}\ \sum_{i=1}^{n} \log\left( p(x_i | \theta) \right).
+\end{equation*}
+\item In the \textit{Bayesian framework}, we instead encode uncertainty about $\theta$ in a prior $p(\theta)$ and apply Bayesian inference:
+\begin{equation*}
+p(\theta | X) = \frac{\displaystyle \prod_{i=1}^{n} p(x_i | \theta) p(\theta) }{\displaystyle \int \prod_{i=1}^{n} p(x_i | \theta) p(\theta)\ d\theta}.
+\end{equation*}
+\end{itemize}
+There are two key differences. First, instead of a point estimate for $\theta$ as in the frequentist framework, the Bayesian framework provides us with the distribution of $\theta$ - this is good as it gives us more information, allowing us to make uncertainty estimates for example. Second, in order to perform Bayesian inference we need to choose a prior distribution $p(\theta)$ - this is sometimes a very difficult task, and we need to think carefully how to choose a prior in each specific problem.
+
+
+
+\newpage
+\begin{frameex}
+Consider tossing a coin which may be biased. The task is to estimate the probability $\theta$ of landing heads up. We are given the following data: $2$ tosses with results heads in both cases, $(H,H)$.\\
+
+In the frequentist framework, we find the most probable value of $\theta$ is $\theta_{\text{ML}} = 1$. Thus the coin is unfair and always lands heads up. Real world experience tells us something is wrong here!\\
+
+In the Bayesian framework, we need to first choose a prior. We will suppose that the prior is symmetric about $1/2$, so that the coin is most likely to be fair. We find the posterior distribution is given by:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{bayesianinference.png}
+\end{figure}
+We make less of a strong conclusion in this case - our data suggests it is more probable that the coin has a bias, but it is not conclusive.\\
+
+Of course, if we increase the amount of data to say $1000$ tosses, both frameworks give similar results. 
+\end{frameex}
+
+So which method should we pick? In general:
+\begin{itemize}
+\item The frequentist framework is applicable when the number of data points $n$ is much larger than the number of parameters $d$ which we wish to estimate, $n \gg d$. 
+\item The Bayesian framework is applicable for all numbers of data points $n$, regardless of the number of parameters.
+\end{itemize}
+The number of tunable parameters in modern machine learning models is comparable with the sizes of the training data - therefore in these cases, the Bayesian framework may also be useful. \\
+
+The frequentist framework is a limit case of the Bayesian one:
+\begin{equation*}
+\lim_{n/d \rightarrow \infty} p(\theta|x_1,...,x_n) = \delta(\theta - \theta_{\text{ML}}). 
+\end{equation*}
+In particular, the Bayesian framework just provides an alternative point of view, it \textit{does not} contradict or deny the frequentist framework. They agree completely in the case of infinite data.\\
+
+There are several advantages of the Bayesian framework to bear in mind:
+\begin{itemize}
+\item We can encode our \textit{prior knowledge} (if we have some) or \textit{desired properties} of the final solution into a prior distribution.
+\item The prior can act as a form of regularisation. If we have small amounts of data, the prior helps us to overtrain (as we saw in the example with coin-tossing above).
+\item Additionally to the point estimate of $\theta$, the posterior distribution in Bayesian inference contains information about the uncertainty of the estimate. 
+\end{itemize}
+
+
+
+\newpage
+\subsection{Application of the Bayesian framework to machine learning models}
+Consider a machine learning task where we have observed variables $x$ (\textit{features}) and a set of hidden/latent variables $y$ (\textit{class labels}, for example). Suppose that our model has parameters $\theta$ (e.g. the weights of a linear model).\\
+
+There are two main types of machine learning models: \textit{generative} and \textit{discriminative}.
+
+\begin{framedef}
+In a \textit{generative model} we try to model the joint distribution $p(x,y,\theta) = p(x,y| \theta)p(\theta)$. Such models can be used to generate new objects, i.e. new pairs $(x,y)$. Examples of such tasks include generation of text, speech and images.\\
+
+This may be quite difficult to train, since the observed space is usually much more complicated than the hidden one.
+\end{framedef}
+
+\begin{framedef}
+In a \textit{discriminative model} we try to model the distribution $p(y, \theta | x)$. We will not be able to generate new objects; we need $x$ as an input. This usually assumes that the prior over $\theta$ does not depend on $x$:
+\begin{equation*}
+p(y,\theta | x) = p(y | x,\theta) p(\theta).
+\end{equation*}
+Examples include classification and regression tasks (here the hidden space is much simpler than the observed one) and machine translation (where the hidden and observed spaces have equal complexity).
+\end{framedef}
+
+We will focus mostly on discriminative models.\\
+
+In order to train a Bayesian machine learning model, we start with some given training data $(X_{\text{tr}}, Y_{\text{tr}})$ and a discriminative model $p(y,\theta | x)$ (by a model, we mean that we choose the form of the distribution). 
+\begin{itemize}
+\item \textbf{Training stage.} At the training stage, we use Bayesian inference over $\theta$:
+\begin{equation*}
+\tag{1}
+p(\theta | X_{\text{tr}}, Y_{\text{tr}}) = \frac{p(Y_{\text{tr}} | X_{\text{tr}}, \theta) p(\theta)}{\displaystyle \int p(Y_{\text{tr}} | X_{\text{tr}}, \theta) p(\theta)\ d\theta}.
+\end{equation*}
+\item \textbf{Result.} Once we have obtained our result, we have an `ensemble' of algorithms rather than a single one $\theta_{\text{ML}}$. By this, we mean we have a model for each value of $\theta$, with probability described by the posterior distribution.\\
+
+The ensemble usually outperforms the single best model. The posterior captures all dependencies from the training data that the model could extract, and could be used as a new prior later (for example, if we acquired new data).
+\item \textbf{Testing stage.} We now have a posterior distribution $p(\theta | X_{\text{tr}}, Y_{\text{tr}})$. Suppose we are given a new data point $x$; we need to compute the predictive distribution on its hidden value $y$.\\
+
+We ensemble with respect to the posterior over the parameters $\theta$:
+\begin{equation*}
+\tag{2}
+p(y | x, X_{\text{tr}}, Y_{\text{tr}}) = \int p(y|x,\theta) p(\theta | X_{\text{tr}}, Y_{\text{tr}}) \ d\theta.
+\end{equation*}
+\end{itemize}
+
+We now see that equations (1) and (2) are very important in the Bayesian model framework. However, the integrals present in (1) and (2) may be intractable - it is important to ask when the integrals can be performed, and what we can do when they cannot.
+
+
+
+
+\newpage
+\subsection{Full Bayesian inference}
+In the previous section, we established that in order to apply Bayesian methods to machine learning we need to consider the integrals:
+\begin{equation*}
+\int p(Y_{\text{tr}} | X_{\text{tr}}, \theta) p(\theta)\ d\theta, \qquad \int p(y | x, \theta) p(\theta | X_{\text{tr}}, Y_{\text{tr}}) \ d\theta.
+\end{equation*}
+In the case that these integrals are tractable, we say that we can use \textit{full Bayesian inference} - we don't use any approximate methods to complement Bayesian inference.\\
+
+We start by defining \textit{conjugacy} of distributions:
+\begin{framedef}
+The distributions $p(\theta)$ and $p(x|\theta)$ are called \textit{conjugate} if $p(\theta | x)$ belongs to the same parametric family as $p(\theta)$:
+\begin{equation*}
+p(\theta) \in \mathcal{A}(\alpha), \quad p(x|\theta) \in \mathcal{B}(\theta) \qquad \Rightarrow \qquad p(\theta | x) \in \mathcal{A}(\alpha').
+\end{equation*}
+For example, $p(\theta)$ and $p(\theta | x)$ could both be normal distributions, but with different mean and variance.
+\end{framedef}
+
+The intuition for this definition is Bayes' theorem:
+\begin{equation*}
+p(\theta | x) = \frac{p(x | \theta) p(\theta)}{\int p(x | \theta)p(\theta)\ d\theta}.
+\end{equation*}
+If $p(x | \theta)$ and $p(\theta)$ are conjugate, then $p(\theta | x)$ belongs to some specific parametric family of distributions, the same as the prior. In particular, we can compute the normalisation constant for this distribution - indeed, this is what the integral on the denominator is! This is possible for standard distributions - just look at Wikipedia. Hence all we need to do is to compute $\alpha'$, the parameter describing where $p(\theta | x)$ is in the parametric family.\\
+
+The same is true at the testing stage, since the integral takes the same form (just replacing $p(Y_{\text{tr}} | X_{\text{tr}}, \theta)$ with $p(y| x,\theta)$ and $p(\theta)$ with $p(\theta | X_{\text{tr}}, Y_{\text{tr}})$. We conclude that:
+\begin{center}
+\textit{Both of our integrals are tractable if the prior and likelihood are conjugate.}
+\end{center}
+Full Bayesian inference is very useful because we can use analytical formulas for both the training and testing stages. However, it makes strong assumptions on the model - \textit{conjugacy of the prior and likelihood}. We must choose a conjugate prior, and this is only possible for simple models (a conjugate prior is typically not flexible enough in most cases).
+
+\begin{frameex}
+Consider coin-tossing again, where our coin may be biased. The task is to estimate a probability $\theta$ of landing heads up. Suppose we are given data $X = (x_1,...,x_n)$ where $x \in \{0,1\}$ (with heads $0$ and tails $1$).\\
+
+Our probabilistic model is given by $p(x,\theta) = p(x | \theta) p(\theta)$ for some prior distribution $p(\theta)$. The likelihood distribution is a \textit{Bernoulli distribution}:
+\begin{equation*}
+p(x | \theta) = \theta^x (1 - \theta)^{1-x}. 
+\end{equation*}
+How should we choose a prior for our probabilistic model? Since we are trying to use full Bayesian inference, we should try to use a conjugate prior.\\
+
+First note that the prior should have domain $\theta \in [0,1]$ since $\theta$ is a probability. Next, the prior should include our knowledge that the coin is most likely fair (from everyday experience). Finally, our prior should be conjugate to the Bernoulli distribution. The \textit{beta distribution} matches all of these requirements:
+\begin{equation*}
+\textrm{Beta}(\theta | a,b) = \frac{1}{B(a,b)} \theta^{a-1} (1-\theta)^{b-1},
+\end{equation*}
+where $B$ is the beta function.
+
+
+\newpage
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{betadistribution.png}
+\end{figure}
+
+Choosing $a = b$ gives a symmetric distribution as required. However, if we think the coin is most likely unfair, we could choose $a \neq b$.\\
+
+Let's check that our likelihood and prior are conjugate. Recall that:
+\begin{equation*}
+p(x | \theta) = \theta^x (1 - \theta)^{1-x}, \qquad p(\theta) = \frac{1}{B(a,b)} \theta^{a-1} (1-\theta)^{b-1}.
+\end{equation*}
+We need to check that the prior and posterior lie in the same parametric family. We note that for some normalisation constant $C$, we have:
+\begin{equation*}
+p(\theta | x) = \frac{p(x | \theta) p(\theta)}{C} = \frac{1}{C B(a,b)} \theta^{x + a-1} (1-\theta)^{x + b}
+\end{equation*}
+So for an appropriate choice of the constant $C$, this is a beta distribution with parameters $x+a, x+b+1$. Thus we have conjugacy as required.\\
+
+We can now compute the posterior distribution on $\theta$, given a dataset $X$. We have, for some normalisations $Z, Z'$:
+\begin{align*}
+p(\theta | X) &= \frac{1}{Z} p(X|\theta) p(\theta) = \frac{1}{Z} \left[ \prod_{i=1}^{n} p(x_i | \theta) \right] p(\theta) = \frac{1}{Z} \left[ \prod_{i=1}^{n} \theta^{x_i} (1 - \theta)^{1 - x_i} \right] \frac{1}{B(a,b)} \theta^{a -1} (1 - \theta)^{b-1} \\[1.5ex]
+&= \frac{1}{Z'} \theta^{a + \sum_{i=1}^{n} x_i - 1} (1 - \theta)^{b + n - \sum_{i=1}^{n} x_i - 1}.
+\end{align*}
+This is a beta distribution $\textrm{Beta}(\theta | a', b')$ where:
+\begin{equation*}
+a' = a + \sum_{i=1}^{n} x_i, \qquad b' = b + n - \sum_{i=1}^{n} x_i.
+\end{equation*}
+In practice, we don't need to compute the normalisation constants $C, Z, Z'$ above (although note that they are easy to compute, for example:
+\begin{equation*}
+1 = \frac{1}{Z'} \int\limits_{0}^{1} \theta^{a' - 1} (1 - \theta)^{b' - 1} = \frac{B(a', b')}{Z'} \qquad \Rightarrow \qquad Z' = B(a',b'). \qquad )
+\end{equation*}
+\end{frameex}
+
+
+
+\newpage
+\subsection{Maximum a posteriori estimation}
+In the case where we do not have conjugacy, we need to make some approximations: a technique that we can use is \textit{maximum a posteriori estimation}. We approximate the posterior distribution with a delta function in $\theta_{\text{MP}}$, where:
+\begin{equation*}
+\theta_{\text{MP}} = \textrm{argmax}\ p(\theta | X_{\text{tr}}, Y_{\text{tr}}) = \textrm{argmax}\ p(Y_{\text{tr}} | X_{\text{tr}}, \theta) p(\theta).
+\end{equation*}
+At the testing stage, the integral is rendered tractable:
+\begin{equation*}
+p(y | x, X_{\text{tr}}, Y_{\text{tr}}) = \int p(y | x,\theta) p(\theta | X_{\text{tr}}, Y_{\text{tr}})\ d\theta \approx p(y | x, \theta_{\text{MP}}). 
+\end{equation*}
+However, this approximation might be quite poor, e.g.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{poorestimate.png}
+\end{figure}
+Note that whilst we are using a point estimate for maximum a posteriori estimation, this is \textit{not} the same as $\theta_{\text{ML}}$. It still uses some information from the prior distribution $p(\theta)$. \\
+
+In summary, we have the following methods:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{methodsummary.png}
+\end{figure}
+
+
+
+\newpage
+\subsection{Approximate Bayesian inference}
+We continue with our discussion of Bayesian inference in the approximate case. We now wish to improve on the simple method of maximum a posteriori estimation (MP estimation) described in the previous section.\\
+
+There are two main approximate inference methods for Bayesian inference. Consider a probabilistic model $p(x,\theta) = p(x| \theta)p(\theta)$, and suppose we wish to compute $p(\theta | x)$. In the case we do not have conjugacy, we estimate:
+\begin{itemize}
+\item \textbf{Variational inference.} We estimate the posterior distribution by approximating $p(\theta | x) \approx q(\theta) \in \mathcal{Q}$ where $\mathcal{Q}$ is some parametric family of distributions.\\
+
+This method is \textit{biased} but is faster and more scalable.
+\item \textbf{Markov Chain Monte Carlo.} Sample from the unnormalised posterior $p(\theta | x)$. This is possible because we can compute the numerator in Bayes' theorem, but not the denominator.\\
+
+This method is \textit{unbiased} but needs a lot of samples.
+\end{itemize}
+A comparison of the two methods is given in the diagram below:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{variationalmcmc.png}
+\end{figure}
+
+
+\minirule
+
+Let's discuss \textit{variational inference} in more detail. In order to find a posterior approximation $p(\theta | x) \approx q(\theta) \in \mathcal{Q}$, we use the following criterion function:
+\begin{equation*}
+F(q) := KL(q(\theta) || p(\theta) | x)),
+\end{equation*}
+where $KL$ is the \textit{Kullback-Leibler divergence} (a good mismatch measure between two distributions over the same domain). We minimise this function over $q(\theta) \in \mathcal{Q}$.\\
+
+In detail:
+\begin{framedef}
+The \textit{Kullback-Leibler divergence} is defined by:
+\begin{equation*}
+KL(q(\theta) || p(\theta | x)) = \int q(\theta) \log\left( \frac{q(\theta)}{p(\theta | x)} \right)\ d\theta.
+\end{equation*}
+\end{framedef}
+
+It has the following properties:
+
+\begin{frameprop}
+The Kullback-Leibler divergence has the following properties:
+\begin{enumerate}[label = (\roman*)]
+\item $KL(q || p) \geq 0$
+\item $KL(q || p) = 0$ if and only if $q = p$.
+\item $KL(q || p) \neq KL(p || q)$ in general (i.e. it is asymmetric).
+\end{enumerate}
+\end{frameprop}
+
+
+\newpage
+There are two difficulties with this minimisation task:
+\begin{itemize}
+\item We can't compute the posterior distribution $p(\theta|x)$ in the first place! Thus we need to rewrite our problem to remove $p(\theta | x)$ from it.
+\item How can we perform a minimisation with respect to a \textit{distribution} $q(\theta) \in \mathcal{Q}$? We need to change the optimisation problem to an optimisation problem with respect to parameters instead.
+\end{itemize}
+
+First, to rewrite $KL(q(\theta) || p(\theta |x))$ we use some `mathematical magic':
+\begin{align*}
+\log(p(x)) &= \int q(\theta) \log(p(x))\ d\theta = \int q(\theta) \log\left( \frac{p(x,\theta)}{p(\theta | x)} \right)\ d\theta\\[1.5ex]
+&= \int q(\theta) \log\left( \frac{p(x,\theta) q(\theta)}{p(\theta | x) q(\theta)} \right)\ d\theta\\[1.5ex]
+&= \int q(\theta) \log\left( \frac{p(x,\theta)}{q(\theta)} \right)\ d\theta + \int q(\theta) \log\left( \frac{q(\theta)}{p(\theta | x)} \right)\ d\theta\\[1.5ex]
+&= \mathcal{L}(q(\theta)) + KL(q(\theta) || p(\theta | x)).
+\end{align*}
+The second term is the $KL$-divergence. The first term is usually called the \textit{evidence lower bound} (ELBO); note that the ELBO does not depend on the posterior distribution, only on the joint distribution, which we know how to compute.\\
+
+Before we discuss how to apply this to change our optimisation function, let's mention why the ELBO is a \textit{lower bound}. Recall Bayes' theorem tells us that:
+\begin{equation*}
+p(\theta | x) = \frac{p(x | \theta) p(\theta)}{p(x)} = \frac{p(x | \theta) p(\theta)}{\displaystyle \int p(x|\theta) p(\theta)\ d\theta} = \frac{\text{Likelihood} \times \text{Prior}}{\text{Evidence}}.
+\end{equation*}
+The denominator, given by $p(x)$, is called the \textit{evidence}. It is the total probability of observing the data. Since the $KL$-divergence is non-negative, we have:
+\begin{equation*}
+\log(p(x)) = \mathcal{L}(q(\theta)) + KL(q(\theta) || p(\theta | x)) \geq \mathcal{L}(q(\theta)),
+\end{equation*} 
+which explains why the ELBO is a lower bound for the (logarithm of the) evidence.\\
+
+Now let's return to the optimisation problem. In the equation $\log(p(x)) = \mathcal{L}(q(\theta))$ and $KL(q(\theta) || p(\theta | x))$, we note that $\log(p(x))$ does not depend on $q$. In particular, changing $q$, we must have that $\log(p(x))$ is constant with respect to $q$, so decreasing $KL$-divergence increases the evidence lower bound. It follows that the following problem is equivalent to our original optimisation:
+\begin{framed}
+\begin{center}
+\textit{Maximise} $\mathcal{L}(q(\theta))$ with respect to $q(\theta) \in \mathcal{Q}$.
+\end{center}
+\end{framed}
+
+Before moving on, let's note that we can write:
+\begin{align*}
+\mathcal{L}(q(\theta)) &= \int q(\theta) \log\left( \frac{p(x,\theta)}{q(\theta)} \right)\ d\theta = \int q(\theta) \log\left( \frac{p(x | \theta) p(\theta)}{q(\theta)} \right)\ d\theta\\[1.5ex]
+&= \int q(\theta) \log(p(x|\theta))\ d\theta + \int q(\theta) \log\left( \frac{p(\theta)}{q(\theta)} \right)\ d\theta\\[1.5ex]
+&= \mathbb{E}_{q(\theta)} \log(p(x|\theta)) - KL(q(\theta) || p(\theta)).
+\end{align*}
+The first term here is called the \textit{data term} and the second term is called the \textit{regulariser}. The first term corresponds to the log likelihood of our data; the second term corresponds to the fact that we would like our posterior to be similar to our prior.
+
+
+\newpage
+We still need to decide how to optimise with respect to a distribution. There is a simple solution: \textit{parametric approximation}. We assume that $q(\theta) = q(\theta | \lambda)$ where $\lambda$ is a set of parameters describing some parametric family of distributions.\\
+
+This is slightly restrictive since:
+\begin{itemize}
+\item It may be too simple and insufficient to model the data.
+\item If it is complex enough, then there is no guarantee we can train it well enough to fit the data.
+\end{itemize}
+
+With this approximation, variational inference reduces to the parametric optimisation problem of \textit{maximising}
+\begin{equation*}
+\mathcal{L}(q(\theta | \lambda)) = \int q(\theta | \lambda) \log\left( \frac{p(x, \theta)}{q(\theta | \lambda} \right)\ d\theta
+\end{equation*}
+over $\lambda$. If we're able to compute derivatives of the ELBO with respect to $\lambda$, we can solve this problem using some numerical optimisation solver (e.g. gradient descent). \\
+
+To summarise, we now have the four inference methods:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{allmethodsummary.png}
+\end{figure}
+
+
+
+\newpage
+\section{Bayesian linear regression}
+\subsection{Review of linear regression}
+Recall that in the problem of linear regression, we are given a design matrix $X \in \mathbb{R}^{N \times d}$ of input data, and a tuple of target values $Y \in \mathbb{R}^N$, where $N$ is the number of objects and $d$ is the number of features. Our task is to model how $Y$ depends on $X$.\\
+
+Linear regression assumes the relationship is of the form $Y \approx Xw$ where $w$ is a collection of weights. Each target value is given by $y_i = x_i^T w$, where $x_i$ is each data point. To train the model, we wish to minimise the MSE:
+\begin{equation*}
+\frac{1}{N} \sum_{i=1}^{N} (x_i^T w - y_i)^2 = \frac{1}{N} || Xw - Y ||^2.
+\end{equation*}
+over $w \in \mathbb{R}^d$. To compute predictions on a new object $x_*$, we evaluate $a(x_*) = x_*^T w$.\\
+
+The objective function in this case is simply a quadratic function of the weights $w$. In most cases, there is a unique optimum which can be found analytically:
+\begin{equation*}
+w_{\text{ML}} = (X^TX)^{-1} X^T Y,
+\end{equation*}
+provided $\textrm{rank}(X^TX) = d$. If $\textrm{rank}(X^TX) < d$, there are infinitely many solutions (there are \textit{flat directions}).\\
+
+We can also add a \textit{regularisation} term to the objective function:
+\begin{equation*}
+L(w) = \frac{1}{N} ||X w - Y||^2 + \lambda ||w||^2,
+\end{equation*}
+for $\lambda > 0$. In this case, $L(w)$ is always \textit{strongly convex}, and there always exists a unique solution:
+\begin{equation*}
+w_{\text{MP}} = (X^TX + \lambda I)^{-1} X^T Y.
+\end{equation*}
+The use of regularisation also prevents overfitting by ensuring that the weights are close to zero.
+
+
+\minirule
+
+\subsection{Bayesian approach to linear regression}
+Now let's take a Bayesian view of linear regression. We start by recalling the definition of the multivariate normal distribution:
+
+\begin{framedef}
+The \textit{multivariate normal distribution} of dimension $d$ has the probability density function:
+\begin{equation*}
+\mathcal{N}(z | \mu, \Sigma) = \frac{1}{\sqrt{\det(2 \pi \Sigma)}} \exp\left( - \frac{1}{2} (z - \mu)^T \Sigma^{-1} (z - \mu) \right),
+\end{equation*}
+where $z \in \mathbb{R}^d$, $\mu \in \mathbb{R}^d$ and $\Sigma \in \mathbb{R}^{d \times d}$. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{multinormal.png}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{multinormal2.png}
+\end{figure}
+
+The vector $\mu$ is the \textit{mean vector}. It reflects the location about which the distribution is concentrated. It also corresponds to the \textit{mode} of the distribution.\\
+
+The matrix $\Sigma$ is the \textit{covariance matrix}. If it is diagonal, the different components of $z$ are uncorrelated. On the other hand, for non-diagonal $\Sigma$, the components of $z$ are correlated (see above). 
+\end{framedef}
+
+In Bayesian linear regression, we are given data $X \in \mathbb{R}^{N \times d}$ and $Y \in \mathbb{R}^N$ as follows. Our Bayesian model is:
+\begin{equation*}
+p(Y, w| X) = p(Y | X,w) p(w),
+\end{equation*}
+where $p(Y | X,w)$ is the likelihood (how does the target $Y$ depend on the input $X$?) and $p(w)$ is the prior (what weights $w$ do we expect?).\\
+
+We assume the likelihood to be a product of independent normal distributions:
+\begin{equation*}
+p(Y | X,w) = \prod_{i=1}^{N} \mathcal{N}(y_i | x_i^T w, 1) = \mathcal{N}(Y|Xw, I).
+\end{equation*}
+In particular, we can write it as a multivariate Gaussian distribution with covariance matrix $I$.\\
+
+The prior is chosen to be \textit{conjugate} with the likelihood. It turns out that the correct choice is a \textit{normal distribution}:
+\begin{equation*}
+p(w) = \mathcal{N}(w | 0, \alpha I),
+\end{equation*}
+for $\alpha > 0$ (this is not tuned during training - it is a hyperparameter which must be determined during cross-validation). This works because the product of normal distributions remains normal.
+
+\minirule
+
+The simplest option for training of Bayesian linear regression is to use \textit{maximum likelihood inference}. In this case, we ignore the prior distribution and maximise $p(Y | X,w)$ with respect to the weights $w$. The result is a single point:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{mlepointestimate.png}
+\end{figure}
+In fact, it can be shown that this is completely equivalent to usual linear regression.
+
+
+\newpage
+If we instead take into account the prior distribution, we should maximise $p(Y | X,w)p(w)$ over $w$. This is \textit{maximum posterior inference}, as we saw earlier. Again we get a point estimate, but it will be influenced by the prior:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{mpepoint.png}
+\end{figure}
+It can be shown in this case that this is completely equivalent to usual linear regression including a regularisation parameter.\\
+
+Finally, we can use \textit{full Bayesian inference}. The posterior distribution takes the form:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{fullinference.png}
+\end{figure}
+In this case we have that the posterior distribution is given by Bayes' theorem, $p(w | X,Y) \propto p(Y | X,w)p(w)$.\\
+
+Let's derive the posterior distribution in the case of full Bayesian inference. The likelihood is given by $P(Y|W,w) = \mathcal{N}(Y | Xw, I)$ and the prior is given by $p(w) = \mathcal{N}(w|0,\alpha I)$ for $\alpha > 0$, hence:
+\begin{align*}
+p(w|X,Y) &= \textrm{Const} \exp\left( - \frac{1}{2} (Y - Xw)^T (Y - Xw) \right) \exp\left( - \frac{1}{2 \alpha} w^T w \right)\\[1.5ex]
+&= \textrm{Const} \exp\left( -\frac{1}{2} w^T \left(X^T X + \frac{1}{\alpha} I \right) w + w^T X^T Y \right).
+\end{align*}
+Completing the square in the exponent, we find that the posterior distribution is normal, $p(w|X,Y) = \mathcal{N}(w|w_{\text{MP}}, \Sigma)$ where:
+\begin{equation*}
+w_{\text{MP}} = \left(X^T X + \frac{1}{\alpha} I \right)^{-1} X^T Y, \qquad \Sigma = X^T X + \frac{1}{\alpha} I.
+\end{equation*}
+The posterior is much narrower than the prior.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{bayesianlineartraining.png}
+\end{figure}
+
+
+\newpage
+Increasing the amount of data improves things as expected:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{morebayesiandata.png}
+\end{figure}
+
+\minirule
+
+We have now completely discussed the training stage for linear Bayesian regression. For the testing stage, given a new object $x_*$, we should compute:
+\begin{equation*}
+p(y_* | x_*, X, Y) = \int p(y_* | x_*, w) p(w | X, Y)\ dw = \mathbb{E}_{p(w|X,Y)} \left[ p(y_* | x_*, w) \right].
+\end{equation*}
+
+It is not difficult to compute this. We find that:
+\begin{equation*}
+p(y_* | x_*, X, Y) = \mathcal{N}(y_* | x_*^T w_{\text{MP}}, 1 + x_*^T \Sigma x_* ).
+\end{equation*}
+The variance of the prediction is the most interesting thing. It is $1 + x_*^T \Sigma x_*$, where the quadratic form $x_*^T \Sigma x_*$ is always non-negative. Thus the variance is always at least $1$. 
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{variancebayesianregression.png}
+\end{figure}
+We see that Bayesian regression provides us with accurate error bands. They are smaller closer to the data and wider away from the data.\\
+
+As we increase the amount of data, the variance reduces:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{moredatavariance.png}
+\end{figure}
+
+
+
+
 \end{document}
