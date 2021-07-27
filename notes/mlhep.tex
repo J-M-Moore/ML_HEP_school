@@ -3856,4 +3856,259 @@ As we increase the amount of data, the variance reduces:
 
 
 
+
+
+
+
+
+
+\newpage
+\section{Introduction to black-box optimisation}
+
+\subsection{Optimisation methods categorisation}
+Optimisation methods can be categorised into three main types:
+\begin{itemize}
+\item \textbf{Gradient methods:} For example stochastic gradient descent, Adam, and others. These have access to the value of the function $f(x)$ at a point and the \textit{gradient} too, $\nabla f(x)$.
+\item \textbf{Second-order and quasi-Newton methods:} For example, Newton's method and BFGS. These additionally have access to the value of the Hessian $H$ (e.g. Newton's method updates values according to $\vec{x} \leftarrow \vec{x} - H^{-1} \nabla f(\vec{x})$).
+\item \textbf{Black-box methods:} In this case, we can only access the values of the function $f(x)$ - we \textit{don't} know the gradient. Examples include Bayesian optimisation, variational optimisation, evolutionary algorithms and many others.
+\end{itemize}
+
+In these lectures we will consider mainly Bayesian and variational optimisation. 
+
+\begin{frameex}
+Examples of black-box optimisation problems include the following:
+\begin{itemize}
+\item Consider \textit{car aerodynamics}. This is usually modelled by solving differential equations using finite difference methods. The gradients might be very expensive and potentially unstable (possible amplifying errors). Here it is reasonable to use black-box optimisation methods.
+\item Consider minimising:
+\begin{equation*}
+\textrm{background}(\theta) = \underset{\textrm{event}}{\mathbb{E}} 1_{\{\text{muons }>0 | \text{event, }\theta\}},
+\end{equation*}
+in an experiment where we wish to detect muons. In this case, we cannot compute the expectation exactly and have to use a Monte Carlo approximation. The expectation is being taken over a non-differentiable function, so it is unclear what we mean by the gradient in this case - thus black-box is necessary.
+\item Consider a chess-bot which wants to maximise:
+\begin{equation*}
+\textrm{win rate}(\theta) = \underset{\textrm{event}}{\mathbb{E}} 1_{\{\text{win }|\text{ opponent, }\theta\}}.
+\end{equation*}
+Again, only Monte Carlo estimates are available of the objective function. Furthermore, we have no estimate of the gradient. 
+\end{itemize}
+\end{frameex}
+
+To summarise: black-box optimisation methods can asses value of the objective in any point, $f(x)$, but have no other information available.\\
+
+We can make some assumptions about the function: for example, we can assume bounds on the parameters, assumptions of (Lipschitz) continuity or smoothness, or even restricting the objective function to a family of functions.\\
+
+Black-box optimisation is usually appleid to heavy objectives which are difficult to compute.
+
+
+
+\newpage
+\subsection{Simple black-box optimisation methods}
+One of the simplest black-box optimisation methods is a \textit{reduction to a gradient method}. Here, we can approximate:
+\begin{equation*}
+\frac{\partial}{\partial x} f(x) \approx \frac{f(x+h) - f(x-h)}{2h}.
+\end{equation*}
+This requires $\mathcal{O}(d)$ evaluations of the function $f$, where $d$ is the dimension of the feature space. For this reason, fast convergence algorithms like quasi-Newton algorithms are recommended.\\
+
+The main drawback of these methods is the high sensitivity to noise. Consider the case where we have a noisy function obtained from Monte Carlo estimation:
+\begin{equation*}
+\frac{f(x+h) + \epsilon_1 - f(x-h) - \epsilon_2}{2h} \approx \frac{\partial}{\partial x} f(x) + \mathcal{O}\left( \frac{\epsilon}{h} \right).
+\end{equation*}
+Here, $\epsilon_1, \epsilon_2$ are noise, and $\epsilon$ is a characteristic length scale for the noise. Note that for small $h$, the noise on the gradient can be very large. For large $h$, we could have an unreliable gradient since the function $f$ could change a lot over a region of our step-size.
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{largeh.png}
+\end{figure}
+
+Here is a comparison of three objective functions with gradient estimated as above using a quasi-Newton method. The first is a `pure' objective function with  no noise. The second has small irregularities of order $1/100$. The third has a very small noise term. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{noisyobjective.png}
+\end{figure}
+
+The situation is improved if we simply use a gradient method rather than a quasi-Newton method, but this can take a very long time.
+
+
+
+\newpage
+Another possible black-box optimisation method is \textit{grid search}:
+\begin{enumerate}
+\item Make a grid.
+\item Evaluate $f$ at every point of the grid.
+\item Search for the minimum.
+\end{enumerate}
+The main drawback is this is extraordinarily slow in high dimensions. The main advantage is that it is a \textit{global optimisation} rather than a local optimisation. Furthermore, it makes essentially no assumptions on the function $f$.
+
+\minirule
+
+Another similar method is \textit{random search}:
+\begin{enumerate}
+\item Draw uniformly multiple points (rather than making a grid).
+\item Evaluate $f$ at every point of the grid.
+\item Search for the minimum.
+\end{enumerate}
+This improve slightly on grid search, since we can insert some prior knowledge of the minimum by picking a different distribution centred on our assumed minimum (this can also be tackled by grid search though by using non-uniform bids).
+
+\minirule
+
+A more complicated black-box optimisation method is called \textit{simulated annealing}:
+\begin{itemize}
+\item For $i=1,...,N$, do the following steps:
+\begin{enumerate}
+\item Set $x_i' = x_{i-1} + \epsilon \cdot \textrm{normal}()$, $y_i' = f(x_i')$, $T = T_0 \cdot (N- i + 1)/N$ and $P = \exp((y_{i-1} - y_i)/T)$.
+\item If $P > \textrm{uniform}(0,1)$, then $x_i, y_i = x_i', y_i'$. Otherwise, $x_i, y_i = x_{i-1}, y_{i-1}$.
+\end{enumerate}
+\item The parameter $T$ is called the \textit{temperature}. It decreases with time which reduces the region which can be explored. The \textit{initial temperature} is $T_0$, which is a hyperparameter.
+\end{itemize}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{simulatedannealing.png}
+\end{figure}
+This algorithm has lots of advantages. It is a \textit{global optimisation}, since it can always leave local minima. Furthermore, it is very robust to the introduction of noise. 
+
+
+
+
+
+
+\newpage
+\section{Variational optimisation}
+
+\subsection{Variational bound}
+Gradient-based methods for black-box optimisation are not useful in the case that our objective function is non-differentiable or $x$ is a discrete variable. The idea of \textit{variational optimisation} is to replace our problem of minimising:
+\begin{equation*}
+f(\theta)
+\end{equation*}
+over $\theta$ with a \textit{differentiable surrogate}:
+\begin{equation*}
+J(\psi) = \underset{\theta \sim P(\cdot|\psi)}{\mathbb{E}} f(\theta),
+\end{equation*}
+and minimise this over $\psi$. Here, $J(\psi)$ is called the \textit{variational bound}, and $P(\cdot | \psi)$ is some \textit{search distribution} that we choose.\\
+
+Here are some examples of the variational bound and an objective function for different search distributions (chosen to be normal with different standard deviations $\sigma$):
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{variationalbounds.png}
+\end{figure}
+For lower $\sigma$, we see that get much closer to the true objective function. For noisy functions this can be a problem.\\
+
+The main property of the variational bound is that it is an \textit{upper bound}:
+\begin{equation*}
+J(\psi) \geq \textrm{min}_{\theta}(f(\theta))
+\end{equation*}
+for all $\psi$. If $P(\cdot | \psi)$ is allowed to (nearly) collapse into the delta function, then $P(\cdot | \psi^*) \approx \delta(\theta^*)$.\\
+
+The gradient of the variational bound can be computed as follows:
+\begin{align*}
+\frac{\partial}{\partial \psi} J(\psi) &= \frac{\partial}{\partial \psi} \underset{\theta \sim P(\cdot | \psi)}{\mathbb{E}} f(\theta)\\[1.5ex]
+&= \frac{\partial}{\partial \psi} \int d\theta\ f(\theta) P(\theta | \psi)\\[1.5ex]
+&= \int d\theta\ f(\theta) \frac{\partial}{\partial \psi} P(\theta | \psi)\\[1.5ex]
+&= \int d\theta\ f(\theta) P(\theta | \psi) \frac{\partial}{\partial \psi} \log(P(\theta | \psi))\\[1.5ex]
+&=  \underset{\theta \sim P(\cdot | \psi)}{\mathbb{E}} f(\theta) \frac{\partial}{\partial \psi} \log(P(\theta | \psi)).
+\end{align*}
+Hence we have established:
+\begin{equation*}
+\nabla_{\psi} J(\psi) = \underset{\theta \sim P(\cdot | \psi)}{\mathbb{E}} f(\theta) \nabla_{\psi} \log(P(\theta | \psi)).
+\end{equation*}
+The main property is that $\nabla_{\psi} J(\psi)$ does not depend on $\nabla_{\theta} f(\theta)$. We can therefore apply the gradient to some non-differentiable functions, e.g. $f(x) = H(x)$, the Heaviside step-function. Choosing the search distribution to be $N(x; \psi, 1)$, we find:
+\begin{equation*}
+\nabla_{\psi} J = e^{-\psi^2/2}/\sqrt{2\pi}
+\end{equation*}
+in this case.
+
+\minirule
+
+There is a tradeoff in the choice of parameters in the variational distribution. Higher variance gives smoother gradients, and the ability to avoid local minima. Lower variance gives results that are much closer to the original objective, but are much more prone to noise.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{variationalboundtradeoff.png}
+\end{figure}
+
+Higher variance can also negate sampling noise effects:
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{variationalboundnoise.png}
+\end{figure}
+
+The only drawback of high variance is an increased \textit{bias}. Fortunately, in practice we usually minimise over both \textit{mean} and \textit{variance} of the distribution. Therefore we can set $\sigma$ large at the start of our optimisation, and let it tend to smaller values over time.
+
+
+
+
+\newpage
+\subsection{Stochastic gradient descent with variational optimisation}
+We can implement variational optimisation via the following algorithm:
+\begin{enumerate}
+\item Initialise the search distribution $P(\cdot | \psi)$.
+\item While the algorithm has not converged, do the following:
+\begin{enumerate}[label = (\roman*)]
+\item Sample $\theta$ from $P(\cdot | \psi)$.
+\item Update $\nabla_{\psi} J(\psi) \leftarrow f(\theta) \nabla_{\psi} \log(P(\theta | \psi))$.
+\item Update $\psi \leftarrow \psi - \gamma \nabla_{\psi} J(\psi)$ for some learning rate $\gamma$. 
+\end{enumerate}
+\end{enumerate}
+ We could use other gradient descent methods, e.g. Adam.\\
+ 
+ Variational optimisation allows usage of stochastic gradient descent methods for black-box problems, but is much slower in contrast to using analytical gradient descent.\\
+ 
+ Usually the search distribution is chosen to be simple, e.g. a normal distribution.\\
+
+The dimensionality of the problem can be retained; at least $1$ additional parameter is included to allow the search distribution to collapse ($\sigma$). $2n$ parameters are present for a normal distribution with a diagonal covariance, $O(n^2)$ for a full covariance matrix. 
+
+
+\minirule
+
+\subsection{Discrete variables}
+
+Consider the following objective function where $df/dx$ does not exist:
+\begin{equation*}
+f(x) = \begin{cases} 0.45 & x =0,\\ 0.53 & x =1.\end{cases}
+\end{equation*}
+To optimise this function, we choose $p(x|\psi) = \textrm{Bernoulli}(x|\psi)$, the Bernoulli distribution with one search parameter. In this case:
+\begin{equation*}
+J(\psi) = \underset{x \sim P(x|\psi)}{\mathbb{E}} f(x) = 0.53\psi + 0.45(1-\psi) = 0.08\psi + 0.45.
+\end{equation*}
+The gradient is $0.08$. Voila! Even though $f(x)$ cannot be differentiated, we are still able to compute the gradient of the variational bound with respect to $\psi$ and optimise the upper bound.\\
+
+Neural networks with discrete random variables are a powerful technique for representing processes encountered in language modelling, attention mechanisms, and robotics control. Discrete representations are often more interpretable. However, networks with discrete variables are hard to train.\\
+
+The drawback of variational optimisation in this case is that Monte-Carlo estimation of $\nabla_{\psi} \underset{x \sim P(x | \psi)}{\mathbb{E}} f(x)$ has high variance, and consequently, slow convergence. The variance scales linearly with the number of dimensions of the sample vector, making it especially challenging to use for categorical distributions.
+
+\newpage
+One trick that can help us out is the \textit{Gumbel maximum trick}. Given probabilities $\{\pi_i\}_{i=1}^{n}$ such that $\sum_{i} \pi_i = 1$, suppose that we want to sample from this discrete distribution.
+
+\begin{frameprop}
+The following procedure:
+\begin{equation*}
+z = \textrm{argmax}\{\log(\pi_i) + G_i\}, \qquad G_i = -\log(-\log(u_i)), \qquad u_i \sim U[0,1]
+\end{equation*}
+generates samples from the discrete probability distribution defined by $\{\pi_i\}_{i=1}^{n}$.
+\end{frameprop}
+
+However, we can't backpropagate through $z$ with repsect to $\pi$, but it's a first step.\\
+
+To make this procedure differentiable, we need a differentiable approximation of the argmax function. One possible choice is the \textit{softmax operation}:
+\begin{equation*}
+y_i = \frac{\exp((\log(\pi_i) + G_i)/\tau)}{\sum_{j} \exp((\log(\pi_j) + G_j)/\tau)}, \qquad G_i = -\log(-\log(u_i)), \qquad u_i \sim U[0,1].
+\end{equation*}
+The variable $\tau$ is called the \textit{temperature}. This distribution is called the \textit{Gumbel softmax distribution}.\\
+
+During the forward pass, we apply $z = \textrm{one-hot}(\textrm{argmax}\{y_i\})$. During the backward pass, we substitute:
+\begin{equation*}
+\frac{dy}{d\pi} \rightarrow \frac{dz}{d\pi}.
+\end{equation*}
+In the limit $\tau \rightarrow 0$, it can be shown that these two gradients will be equal.\\
+
+The temperature parameter controls how closely the samples approximate the discrete one-hot vectors. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{gumbeltemperature.png}
+\end{figure}
+
+Good practice is to start with a high temperature and gradually decrease it during the training.
+
+
+
 \end{document}
